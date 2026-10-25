@@ -26,6 +26,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
 from campuslink.backup import backup_database
+from campuslink.deployment import ACCESS_COOKIE
 from .journey_browser import Journey, ROOT
 
 
@@ -36,6 +37,7 @@ class StagingJourney(Journey):
         self.loopback = f'https://127.0.0.1:{self.port}'
         self.gate = 'Basic ' + base64.b64encode(('qa-tester:' + secrets.token_urlsafe(32)).encode()).decode()
         self.gate_password = base64.b64decode(self.gate.split(' ',1)[1]).decode().split(':',1)[1]
+        self.gate_challenges = {}
         self.cert, self.key = temp/'qa-cert.pem', temp/'qa-key.pem'
         subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(self.key),
             '-out',str(self.cert),'-days','1','-subj','/CN=campuslink-staging.test',
@@ -79,7 +81,21 @@ class StagingJourney(Journey):
         driver.execute_cdp_cmd('Emulation.setDeviceMetricsOverride',{'width':width,'height':height,'deviceScaleFactor':1,'mobile':True})
         driver.execute_cdp_cmd('Emulation.setTouchEmulationEnabled',{'enabled':True})
         driver.execute_cdp_cmd('Network.enable',{})
-        driver.execute_cdp_cmd('Network.setExtraHTTPHeaders',{'headers':{'Authorization':self.gate}})
+        # Answer the actual browser HTTP-auth challenge once. Supplying an
+        # Authorization header on every request hides repeated native prompts.
+        devtools, connection = driver.start_devtools()
+        challenges = self.gate_challenges[driver.session_id] = []
+        connection.add_callback(devtools.fetch.RequestPaused,
+            lambda event: connection.execute(devtools.fetch.continue_request(event.request_id)))
+        def authenticate(event):
+            challenges.append(event.request.url)
+            response = devtools.fetch.AuthChallengeResponse(response='CancelAuth')
+            if len(challenges) == 1:
+                response = devtools.fetch.AuthChallengeResponse(response='ProvideCredentials',
+                    username='qa-tester', password=self.gate_password)
+            connection.execute(devtools.fetch.continue_with_auth(event.request_id,response))
+        connection.add_callback(devtools.fetch.AuthRequired,authenticate)
+        connection.execute(devtools.fetch.enable(handle_auth_requests=True))
         return driver
 
     def register(self,driver,*args):
@@ -108,6 +124,24 @@ def run():
                     assert response.status_code==401 and 'WWW-Authenticate' in response.headers
             j.passed('real TLS gate protects UI, assets, APIs, photos and SSE; public health exposes no account data')
             a,b=j.browser(390,844),j.browser(412,915)
+            for driver in (a,b):
+                driver.get(j.url+'/signup')
+                j.wait(driver,'#auth-form')
+                for _ in range(3):
+                    j.api(driver,'/api/me',status=401)
+                    j.api(driver,'/api/catalog')
+                driver.get(j.url+'/login')
+                j.fill(driver,'[name=email]','absent@campuslink.test')
+                j.fill(driver,'[name=password]','Wrong-individual-password!')
+                j.click(driver,'#auth-form [type=submit]')
+                error=j.wait(driver,'#auth-form .form-error:not(.hidden)')
+                assert 'Email or password is incorrect' in error.text
+                cookie=next(c for c in driver.get_cookies() if c['name']==ACCESS_COOKIE)
+                assert cookie['secure'] and cookie['httpOnly'] and cookie['sameSite']=='Lax'
+                driver.refresh()
+                j.wait(driver,'#auth-form')
+                assert len(j.gate_challenges[driver.session_id])==1
+            j.passed('native tester challenge is answered once per browser; secure tester cookies survive account 401 responses, wrong individual passwords and refresh without another prompt')
             ua=j.register(a,'staging_ada','Staging Ada','Computer Science',2)
             ub=j.register(b,'staging_ben','Staging Ben','Business Administration',3)
             j.activate(a,'woman','man','relationship',True)
@@ -147,12 +181,14 @@ def run():
             j.revoked((a,b),rid)
             j.api(b,photo,status=404)
             for d in (a,b):
+                assert len(j.gate_challenges[d.session_id])==1
                 assert not d.execute_script('return document.documentElement.scrollWidth>innerWidth')
                 errors=[e for e in d.get_log('browser') if any(t in e['message'] for t in ('Uncaught','SyntaxError','Content Security Policy'))]
                 assert not errors,errors
             j.passed('student-level block rules still deny both clients and photo URLs; mobile layouts fit; no uncaught JS/CSP errors')
             (ROOT/'artifacts'/'staging-results.json').write_text(json.dumps({'groups':j.results,
                 'temporary_tls_certificate':True,'real_hosted_service':False,'physical_devices':False,
+                'tester_auth_challenges_per_browser':[len(j.gate_challenges[d.session_id]) for d in (a,b)],
                 'fresh_test_accounts':2,'persisted_messages':5},indent=2)+'\n')
         except BaseException:
             for i,d in enumerate(j.drivers):

@@ -6,7 +6,7 @@ Follow the [development checklist](CHECKLIST.md) for completed work, the next fe
 
 A working local campus dating and student-discovery application with a FastAPI backend, a persistent SQLite database, and a responsive browser interface. The main path is **discover → public Like → mutual match → chat**, with private comment requests as another way to connect. Feed supports text/photo posts and public reactions. Comments stay private; a recipient must accept a request before a new conversation opens. Music is excluded. Friendship and study connections remain available.
 
-**Status: local functional MVP, built and tested.** Real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred at your request. Local use remains supported. A restricted hosted test configuration is prepared; no online service has been created yet. This implementation follows the supplied brief through section 14.4, where the pasted document ends mid-sentence. Full profiles and test-account setup identify fictional accounts as **Local test · Unverified**. CampusLink is independent of ZUT.
+**Status: local functional MVP, built and tested.** Real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred at your request. Local use remains supported. A restricted test service is deployed at [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com); hosted acceptance remains open. This implementation follows the supplied brief through section 14.4, where the pasted document ends mid-sentence. Full profiles and test-account setup identify fictional accounts as **Local test · Unverified**. CampusLink is independent of ZUT.
 
 ## Run locally
 

@@ -4,7 +4,7 @@ Use the [development checklist](../CHECKLIST.md) to track the next feature phase
 
 This is a local functional MVP, not a finished public product. Visual quality is not the acceptance criterion. The test target is students discovering, connecting, and chatting with real persisted state and server-side permissions.
 
-**Current scope:** local MVP use and development. At the user's request, real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred. They are not prerequisites for the current local scope. Existing automated functional checks remain the acceptance evidence.
+**Current scope:** local MVP use, development and restricted hosted testing. At the user's request, real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred. They are not prerequisites for the current local scope. Existing automated functional checks remain the acceptance evidence.
 
 | Area | Local implementation |
 | --- | --- |
@@ -46,7 +46,9 @@ The social and conversation suites passed with motion integrated, and final focu
 
 The code supports local mode and access-controlled staging. Staging requires a canonical HTTPS origin, separate persistent storage and a random tester credential. It gates every route including assets, uploads, photos and live events, with a minimal public health exception. Individual app accounts, Secure/HttpOnly cookies, CSRF, eligibility and relationship rules remain enforced. Demo seeding and supplied fixture databases are refused; the hosted interface hides fixture login helpers. No public/student eligibility provider is claimed, and production modes still refuse startup.
 
-The Render Blueprint, one-worker launcher, Python version and consistent SQLite backup command are prepared in the source tree. The restricted TLS browser journey passed six groups using temporary certificates/accounts/servers, including live SSE, offline retry, forced restart and database/image backups. All 168 API tests passed, including 42 deployment/backup cases, and the local social browser regression passed all five groups. Exact results are recorded in [validation](VALIDATION.md). Actual Render service creation, managed-certificate checks and hosted phone acceptance remain pending. See [DEPLOYMENT.md](DEPLOYMENT.md).
+The Render Blueprint, one-worker launcher, Python version and consistent SQLite backup command are prepared in the source tree. The initial restricted TLS browser journey passed six groups using temporary certificates/accounts/servers, including live SSE, offline retry, forced restart and database/image backups. The initial 168 API tests passed, including 42 deployment/backup cases, and the local social browser regression passed all five groups. Exact results and the subsequent tester-login regression checks are recorded in [validation](VALIDATION.md).
+
+The user deployed the restricted service at <https://campuslink-staging.onrender.com>; its managed HTTPS health endpoint and tester challenge responded on 25 October 2026. A reported repeating native password prompt exposed a gap in the original browser test, which injected credentials into every request. The fix remembers accepted tester access in a signed seven-day Secure/HttpOnly cookie, separately from account login; the browser test now answers a real HTTP-auth challenge only once. Applying that update on Render and confirming hosted account/device behavior remain pending. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Automated evidence
 

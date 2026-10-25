@@ -2,18 +2,24 @@
 import base64
 import binascii
 import hashlib
+import hmac
 import ipaddress
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 import re
 import secrets
+import time
 from urllib.parse import urlsplit
 import uuid
 
 from fastapi import HTTPException, Request
 from starlette.datastructures import MutableHeaders
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
+
+
+ACCESS_COOKIE = '__Host-campuslink_staging'
+ACCESS_SECONDS = 7 * 86400
 
 
 @dataclass(frozen=True)
@@ -80,6 +86,31 @@ class Deployment:
         if con.execute('SELECT 1 FROM users WHERE id IN (' + ','.join('?' for _ in ids) + ') LIMIT 1', ids).fetchone():
             raise RuntimeError('Staging refuses supplied demo accounts. Use a clean persistent database and create individual tester accounts.')
 
+    def access_signature(self, value):
+        # Bind the separate tester session to this service and its current
+        # credentials. Rotating either credential invalidates existing cookies.
+        message = '\0'.join(('campuslink-staging-v1', self.origin, self.gate_user, value))
+        return hmac.new(self.gate_password.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+    def access_cookie(self):
+        value = f'{int(time.time()) + ACCESS_SECONDS}.{secrets.token_urlsafe(24)}'
+        return value + '.' + self.access_signature(value)
+
+    def valid_access_cookie(self, request):
+        try:
+            cookie = request.cookies.get(ACCESS_COOKIE, '')
+            if len(cookie) > 160:
+                return False
+            expires, nonce, signature = cookie.split('.')
+            if not re.fullmatch(r'[0-9]{1,12}', expires) or not re.fullmatch(r'[A-Za-z0-9_-]{32}', nonce):
+                return False
+            now = int(time.time())
+            if not now < int(expires) <= now + ACCESS_SECONDS:
+                return False
+            return secrets.compare_digest(signature, self.access_signature(expires + '.' + nonce))
+        except (ValueError, TypeError):
+            return False
+
     def request_error(self, request):
         if request.method == 'GET' and request.url.path == '/api/health':
             return None
@@ -91,6 +122,8 @@ class Deployment:
             return JSONResponse({'detail': 'Host unavailable.'}, 400)
         if request.url.scheme != 'https':
             return JSONResponse({'detail': 'This restricted test requires HTTPS.'}, 403)
+        if self.valid_access_cookie(request):
+            return None
         try:
             scheme, encoded = request.headers.get('authorization', '').split(' ', 1)
             if scheme.lower() != 'basic' or len(encoded) > 1024:
@@ -117,6 +150,9 @@ class StagingAccess:
             await self.app(scope, receive, send)
             return
         request = Request(scope)
+        error = self.deployment.request_error(request)
+        health_probe = request.method == 'GET' and request.url.path == '/api/health'
+        remember = error is None and not health_probe and not self.deployment.valid_access_cookie(request)
         async def restricted_send(message):
             if message['type'] == 'http.response.start':
                 headers = MutableHeaders(scope=message)
@@ -126,8 +162,16 @@ class StagingAccess:
                 headers['Referrer-Policy'] = 'same-origin'
                 if request.url.scheme == 'https':
                     headers['Strict-Transport-Security'] = 'max-age=15552000'
+                if remember:
+                    # Account APIs also use 401. Browsers can discard cached
+                    # Basic credentials on those responses, reopening their
+                    # native prompt. Keep tester access separate from app login.
+                    response = Response()
+                    response.set_cookie(ACCESS_COOKIE, self.deployment.access_cookie(),
+                        max_age=ACCESS_SECONDS, path='/', secure=True,
+                        httponly=True, samesite='lax')
+                    headers.append('Set-Cookie', response.headers['set-cookie'])
             await send(message)
-        error = self.deployment.request_error(request)
         if error is not None:
             if error.status_code == 401:
                 try:

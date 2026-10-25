@@ -10,6 +10,11 @@ publish source only. Local databases, images, session records, secrets, backups,
 private workspace metadata and the pasted development brief are excluded from
 the release checkout. Never add `.env` files containing real values.
 
+The restricted test service is deployed at
+<https://campuslink-staging.onrender.com>. Its HTTPS health endpoint and tester
+challenge responded on 25 October 2026. Hosted account, device, redeployment
+and restore acceptance are still open; deployment alone does not close them.
+
 ## What is ready
 
 - [render.yaml](../render.yaml) defines one Python web service with a 1 GB
@@ -22,6 +27,10 @@ the release checkout. Never add `.env` files containing real values.
 - Every page, asset, API, photo and event stream requires the shared tester
   gate over HTTPS. Each tester then signs in with their individual app account.
   Only `GET /api/health` is accessible without the gate for platform checks.
+- Successful tester access is remembered for seven days in a signed,
+  host-only Secure/HttpOnly cookie. Application sign-in failures and sign-out
+  do not reopen the tester prompt. Rotating the tester username or password
+  invalidates these cookies. Deploy the latest source to apply this fix.
 - The canonical host is pinned, insecure access is denied, application cookies
   are Secure/HttpOnly, and staging responses use no-store/no-index headers.
 - Supplied demo databases and demo seeding are refused. The hosted volume
@@ -47,7 +56,8 @@ the release checkout. Never add `.env` files containing real values.
    `public_launch_ready: false`. The latter is intentional: the service is a
    restricted test, not a student launch.
 6. Open the actual HTTPS address. First enter the tester gate credentials in
-   the browser prompt. Then create an individual fictional app account.
+   the browser prompt. The browser remembers this separate tester access for
+   seven days. Then create an individual fictional app account.
    There are no seeded Alice/Brian/moderator logins in staging.
 7. Use two independent browser sessions or phones to complete the checks below.
    Record the real URL and results before calling the online test accepted.
@@ -78,6 +88,21 @@ are allowed; valid gate credentials are not locked out by failed attempts.
 The app does not automatically read `.env` files. Set values through the
 hosting dashboard or exported environment variables. Never set a fake public
 mode or seed the local database to work around an initialization error.
+
+### Repeating tester password prompt
+
+Earlier source used HTTP Basic credentials on every request. An ordinary
+account-level 401 could clear the browser's HTTP-auth cache and reopen the
+tester prompt. The fix remembers accepted tester access in a separate signed
+cookie; it does not sign in to an individual account or bypass CSRF checks.
+
+Deploy the latest commit using **Manual Deploy → Deploy latest commit** on
+the Render service and wait for **Live**. Then reload the HTTPS address. If
+the very first tester prompt still rejects the credentials before any page
+opens, copy the actual value of `CAMPUSLINK_STAGING_PASSWORD` from the service's
+Environment settings; the variable name and individual account passwords do
+not unlock the gate. If replacing it, use a random 24–128 character password,
+save/redeploy the environment change, and share the new value privately.
 
 ## Recovery email
 
@@ -113,6 +138,8 @@ Do not overwrite the active database while Uvicorn is using it.
   return 401. `/api/health` alone returns a minimal status.
 - With gate credentials: registration/sign-in works over HTTPS, cookies are
   Secure/HttpOnly, and cross-origin or invalid-CSRF writes fail.
+- After accepting the tester prompt once, unsigned-in account checks, a wrong
+  individual password, refresh and application sign-out do not reopen it.
 - Two independent accounts can discover, match, exchange messages and confirm
   Sent/Delivered/Read. Private comments remain recipient-controlled requests.
 - Profile/post photos upload and remain accessible only under their normal

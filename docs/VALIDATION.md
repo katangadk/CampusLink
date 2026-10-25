@@ -4,6 +4,46 @@
 
 The local discovery → connection → conversation journey passes automated API and real-browser checks. This is evidence for the local build, not a claim of public readiness, production reliability, or successful student acceptance testing.
 
+## Repeating tester prompt and hosted status — 25 October 2026
+
+The user deployed <https://campuslink-staging.onrender.com>. GitHub's Render
+deployment reported success, the actual HTTPS health endpoint returned 200
+with `mode: staging`, and an unauthenticated page returned the restricted
+tester challenge. These observations establish service reachability, not
+hosted account, two-phone, restart or restore acceptance.
+
+The user reported a repeating native tester-password popup. A temporary TLS
+Chromium reproduction answered real HTTP-auth challenges instead of attaching
+an Authorization header to every request. Ordinary account 401 responses were
+followed by additional tester challenges. The earlier staging browser suite
+hid this interaction by injecting credentials into every request.
+
+The fix issues a separate signed seven-day Secure/HttpOnly, host-only tester
+cookie after accepted gate credentials. It survives account-level 401 and
+logout, retains ordinary account sessions/CSRF, and is invalidated by expiry,
+tampering, host changes or tester-credential rotation. No database migration
+or runtime dependency is required. The full API suite passed **179 tests in
+76.66 seconds**, including 53 deployment/backup cases, with the same upstream
+TestClient deprecation warning.
+
+`python -m tests.staging_browser` passed all **7 groups**. The suite answers
+only one real tester challenge per browser, checks wrong individual passwords
+and unsigned-in account reads, and refreshes before exercising the full
+two-account journey. It does not inject an Authorization header into browser
+requests. The remaining groups verified fresh onboarding/photos/Dating,
+cross-program matching, two-way SSE messages, draft preservation, one-copy
+offline retry, forced restart with retained sessions/images/history, SQLite
+backup integrity, and both-direction blocking. The result artifact records
+`tester_auth_challenges_per_browser: [1, 1]`. Its temporary TLS certificate,
+database and two Chromium sessions do not establish real Android behavior.
+Applying the update on Render and hosted acceptance remain pending.
+
+The first run of the revised browser harness exposed missing Network domain
+initialization for its offline simulation: the message was sent successfully
+instead of failing offline. Restoring `Network.enable` corrected the harness;
+the subsequent full run passed the actual offline retry check. No application
+offline behavior was changed to make the test pass.
+
 ## Restricted hosted test preparation — 25 October 2026
 
 The complete API suite passed **168 tests in 69.43 seconds**, with the same upstream TestClient deprecation warning. This includes 42 deployment/backup cases: fail-closed mode/settings validation, host/HTTPS checks, gate protection across pages/assets/APIs/photos/SSE, malformed credentials, failed-attempt limits, independent application authentication/CSRF, Secure cookies, trusted/untrusted proxy headers, fixture/seed refusal, persistence and backup/restore. Public/production modes remain disabled and schema version 5 is unchanged.
@@ -14,7 +54,12 @@ The complete API suite passed **168 tests in 69.43 seconds**, with the same upst
 
 The 42-case deployment test run also passed separately. Source is prepared for the user-provided `katangadk/CampusLink` repository. The release checkout excludes local databases/images, secrets, backups, generated test artifacts, private workspace metadata and the pasted development brief. Existing local accounts and messages were not migrated to a host.
 
-**No actual Render service, managed public certificate, paid resource, real recovery delivery or physical-phone hosted result is claimed.** Account connection, compute/storage estimate review, service creation and acceptance on its actual URL remain pending in [DEPLOYMENT.md](DEPLOYMENT.md) and [PHONE_TEST.md](PHONE_TEST.md).
+At this initial preparation stage, no actual Render service, managed public
+certificate, paid resource, real recovery delivery or physical-phone hosted
+result was claimed. The subsequent service deployment and tester-login
+regression are recorded above. Actual recovery delivery and physical-phone
+hosted acceptance remain pending in [DEPLOYMENT.md](DEPLOYMENT.md) and
+[PHONE_TEST.md](PHONE_TEST.md).
 
 ## Motion and interaction — 25 October 2026
 
@@ -58,7 +103,7 @@ Both physical devices are Android, but the updated real-phone keyboard, backgrou
 
 Command: `python3 -m pytest -q`
 
-**Latest result: 168 passed in 69.43 seconds (25 October 2026), with one upstream TestClient deprecation warning.** Forty-two deployment/backup cases are described above; the earlier 126-case application result remains historical evidence. The 16 social/receipt cases cover public reactions, legacy-private separation, private requests/recipient decisions, concurrent acceptance, posted-photo validation and privacy, persistence, safe retry, edit/delete, campus/block rules, receipt acknowledgements, CSRF, schema-4 upgrades and independent quotas for accounts sharing Wi-Fi. Tests run against isolated temporary SQLite databases and independent authenticated clients. No external email or institutional service was contacted. The photo phase adds 21 cases covering supported image formats, EXIF orientation, metadata stripping, compression, persistence, gallery ordering, concurrent/idempotent uploads, ownership, visibility, dating eligibility, blocking, account deletion/deactivation, invalid/animated/oversized images, streamed-body limits, CSRF and the version-1 database upgrade. The prompt phase adds 25 cases covering the catalog, optional answers, editing/order/removal, restart persistence, safe plain-text/Unicode limits, invalid replacement rollback, CSRF, owner scope, atomic concurrent saves, existing visibility/eligibility/block rules, account lifecycle and upgrading a version-2 database without losing photos, users or sessions. The intention phase adds 19 cases covering private/unset defaults, all labels, editing/hiding/removal, retries/restarts, default and specific filters, general/friend/study exclusions, forged Dating contexts, consent and eligibility rules, validation rollback, CSRF/ownership, account lifecycle and preserving photos, prompts, users and sessions through a version-3 upgrade. The starter phase adds 15 cases covering shared interests and visible answers, no-overlap fallback, bounded/current plain text, private-data exclusions, reads without message/notification/cursor changes, authentication/membership, non-dating and pending connections, revoked consent/eligibility, accepted hidden profiles, and persistent duplicate-safe sending of edited starter text.
+**Latest result: 179 passed in 76.66 seconds (25 October 2026), with one upstream TestClient deprecation warning.** Fifty-three deployment/backup cases are described above; the earlier 126-case application result remains historical evidence. The 16 social/receipt cases cover public reactions, legacy-private separation, private requests/recipient decisions, concurrent acceptance, posted-photo validation and privacy, persistence, safe retry, edit/delete, campus/block rules, receipt acknowledgements, CSRF, schema-4 upgrades and independent quotas for accounts sharing Wi-Fi. Tests run against isolated temporary SQLite databases and independent authenticated clients. No external email or institutional service was contacted. The photo phase adds 21 cases covering supported image formats, EXIF orientation, metadata stripping, compression, persistence, gallery ordering, concurrent/idempotent uploads, ownership, visibility, dating eligibility, blocking, account deletion/deactivation, invalid/animated/oversized images, streamed-body limits, CSRF and the version-1 database upgrade. The prompt phase adds 25 cases covering the catalog, optional answers, editing/order/removal, restart persistence, safe plain-text/Unicode limits, invalid replacement rollback, CSRF, owner scope, atomic concurrent saves, existing visibility/eligibility/block rules, account lifecycle and upgrading a version-2 database without losing photos, users or sessions. The intention phase adds 19 cases covering private/unset defaults, all labels, editing/hiding/removal, retries/restarts, default and specific filters, general/friend/study exclusions, forged Dating contexts, consent and eligibility rules, validation rollback, CSRF/ownership, account lifecycle and preserving photos, prompts, users and sessions through a version-3 upgrade. The starter phase adds 15 cases covering shared interests and visible answers, no-overlap fallback, bounded/current plain text, private-data exclusions, reads without message/notification/cursor changes, authentication/membership, non-dating and pending connections, revoked consent/eligibility, accepted hidden profiles, and persistent duplicate-safe sending of edited starter text.
 
 Covered: registration/login, CSRF and origin protection, onboarding persistence, safe profile projections, discovery eligibility and search, friendship/study lifecycle, simultaneous requests, guessed conversation IDs, unread counts, both-direction blocking, concurrent retry deduplication, history pagination, dating privacy and reciprocal eligibility, unmatching/disable, moderator roles and audits, password change and session revocation, deletion/deactivation, persisted rate limits, restart persistence, and recovery token expiry, one-time use, generic responses and session revocation.
 

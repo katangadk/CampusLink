@@ -1,6 +1,7 @@
 import base64
 from pathlib import Path
 import sqlite3
+import time
 import uuid
 
 from fastapi.testclient import TestClient
@@ -8,7 +9,7 @@ import pytest
 
 from campuslink.app import create_app, ROOT
 from campuslink.backup import backup_database
-from campuslink.deployment import Deployment
+from campuslink.deployment import ACCESS_COOKIE, ACCESS_SECONDS, Deployment
 from campuslink.seed import seed
 from campuslink.serve import options
 from .conftest import sql
@@ -70,6 +71,81 @@ def test_health_is_public_and_gate_does_not_replace_account_login(staging):
     assert catalog['mode'] == 'staging' and catalog['demo_accounts_available'] is False
     assert c.get('/api/me').status_code == 401  # Gate credentials are not a student session.
     assert c.get('/assets/app.js').status_code == 200
+
+
+def test_tester_cookie_survives_account_401_and_logout_without_rechallenging(staging):
+    c = client(staging)
+    response = c.get('/signup')
+    cookie = response.headers['set-cookie']
+    assert cookie.startswith(ACCESS_COOKIE + '=')
+    for flag in ('Secure', 'HttpOnly', 'SameSite=lax', 'Path=/', f'Max-Age={ACCESS_SECONDS}'):
+        assert flag in cookie
+    assert 'Domain=' not in cookie and PASSWORD not in cookie
+    # Simulate the browser dropping its HTTP-auth cache after an account 401.
+    c.headers.pop('Authorization')
+    for _ in range(3):
+        response = c.get('/api/me')
+        assert response.status_code == 401 and 'WWW-Authenticate' not in response.headers
+        assert c.get('/api/catalog').status_code == 200
+        assert c.get('/assets/app.js').status_code == 200
+    wrong = c.post('/api/auth/login', json={'email':'absent@campuslink.test','password':'wrong'})
+    assert wrong.status_code == 401 and 'WWW-Authenticate' not in wrong.headers
+    assert c.get('/signup').status_code == 200
+    user = register(c, 'cookie_tester')
+    assert c.get('/api/me').json()['user']['id'] == user['id']
+    assert c.patch('/api/me',json={'bio':'wrong'},headers={'X-CSRF-Token':'invalid'}).status_code == 403
+    assert c.post('/api/auth/logout',json={}).status_code == 200
+    assert c.get('/api/me').status_code == 401
+    assert c.get('/login').status_code == 200
+
+
+def test_health_and_failed_gate_attempts_never_grant_tester_cookies(staging):
+    for c in (client(staging), client(staging, gate=False)):
+        response = c.get('/api/health')
+        assert response.status_code == 200 and 'set-cookie' not in response.headers
+    response = client(staging, gate=False).get('/signup')
+    assert response.status_code == 401 and 'set-cookie' not in response.headers
+
+
+@pytest.mark.parametrize('value', ['', 'invalid', '1.nonce.mac', 'x'*161,
+    '999999999999.'+'a'*32+'.'+'b'*64, '1.'+'a'*32+'.'+'b'*64,
+    'not-a-number.'+'a'*32+'.'+'b'*64])
+def test_invalid_tester_cookies_do_not_bypass_gate(staging, value):
+    c = client(staging, gate=False)
+    c.cookies.set(ACCESS_COOKIE, value)
+    assert c.get('/api/catalog').status_code == 401
+
+
+def test_tester_cookie_signature_expiry_host_and_credential_rotation(staging, monkeypatch):
+    c = client(staging)
+    c.get('/signup')
+    original = c.cookies.get(ACCESS_COOKIE)
+    c.headers.pop('Authorization')
+    c.cookies.clear()
+    c.cookies.set(ACCESS_COOKIE, original[:-1] + ('0' if original[-1] != '0' else '1'))
+    assert c.get('/api/catalog').status_code == 401
+    c.cookies.set(ACCESS_COOKIE, original)
+    assert c.get('/api/catalog',headers={'Host':'other.test'}).status_code == 400
+    assert c.get('/api/catalog').status_code == 200
+    with monkeypatch.context() as clock:
+        clock.setattr('campuslink.deployment.time.time',lambda:float(original.split('.')[0]))
+        assert c.get('/api/catalog').status_code == 401
+    for variable, value in [('CAMPUSLINK_STAGING_PASSWORD', 'Rotated-synthetic-gate-password-2026!'),
+                            ('CAMPUSLINK_STAGING_USERNAME', 'new-tester'),
+                            ('CAMPUSLINK_BASE_URL', 'https://another.campuslink.test')]:
+        with monkeypatch.context() as settings:
+            settings.setenv(variable, value)
+            other = client(create_app(), gate=False, origin=value if variable=='CAMPUSLINK_BASE_URL' else ORIGIN)
+            other.cookies.set(ACCESS_COOKIE, original)
+            assert other.get('/api/catalog').status_code == 401
+
+
+def test_signed_future_tester_cookie_is_refused(staging):
+    deployment = Deployment.load(ROOT)
+    value = f'{int(time.time()) + ACCESS_SECONDS + 60}.' + 'a'*32
+    c = client(staging, gate=False)
+    c.cookies.set(ACCESS_COOKIE, value + '.' + deployment.access_signature(value))
+    assert c.get('/api/catalog').status_code == 401
 
 
 @pytest.mark.parametrize('authorization', ['Bearer test','Basic invalid!', 'Basic ',

@@ -26,7 +26,7 @@ the new network still needs confirmation.
 
 ## When testing the hosted staging build
 
-Use the actual HTTPS address produced by Render after deployment; no hosted address has been verified yet. Enter the separate tester gate username/password at the browser prompt, then use a different individual app account on each phone. Create fictional test accounts; the supplied Alice/Brian/moderator fixtures are not available in staging. Test on mobile data as well as Wi-Fi. Record the actual hosted URL, native gate prompt, HTTPS login, background/resume and redeployment results. See [DEPLOYMENT.md](DEPLOYMENT.md) for setup. Local TLS browser tests do not mark these device checks complete.
+Open <https://campuslink-staging.onrender.com>. Its HTTPS health endpoint and tester challenge responded on 25 October 2026; account and phone acceptance remain pending. Enter the separate tester gate username/password at the browser prompt, then use a different individual app account on each phone. After deploying the tester-cookie fix, confirm the prompt appears only once: an account sign-in error, application sign-out or refresh must not reopen it during the seven-day tester session. Create fictional test accounts; the supplied Alice/Brian/moderator fixtures are not available in staging. Test on mobile data as well as Wi-Fi. Record native gate behavior, HTTPS login, background/resume and redeployment results. See [DEPLOYMENT.md](DEPLOYMENT.md) for setup. Local TLS browser tests do not mark these device checks complete.
 
 ## Prepare two independent profiles
 
