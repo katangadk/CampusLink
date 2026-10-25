@@ -26,11 +26,12 @@ and restore acceptance are still open; deployment alone does not close them.
   on Render's `PORT`, with HTTPS proxy handling and bounded graceful shutdown.
 - Every page, asset, API, photo and event stream requires the shared tester
   gate over HTTPS. Each tester then signs in with their individual app account.
-  Only `GET /api/health` is accessible without the gate for platform checks.
+  The tester access form and `GET /api/health` are accessible before signing in.
 - Successful tester access is remembered for seven days in a signed,
   host-only Secure/HttpOnly cookie. Application sign-in failures and sign-out
-  do not reopen the tester prompt. Rotating the tester username or password
-  invalidates these cookies. Deploy the latest source to apply this fix.
+  do not reopen tester access. Rotating the tester username or password
+  invalidates these cookies. The gate uses a normal HTML form with inline
+  password/cookie errors; it never sends a browser HTTP-auth challenge.
 - The canonical host is pinned, insecure access is denied, application cookies
   are Secure/HttpOnly, and staging responses use no-store/no-index headers.
 - Supplied demo databases and demo seeding are refused. The hosted volume
@@ -49,14 +50,15 @@ and restore acceptance are still open; deployment alone does not close them.
    build/pre-deploy steps; the persistent volume is mounted only at runtime.
 4. Render generates `CAMPUSLINK_STAGING_PASSWORD` and supplies
    `RENDER_EXTERNAL_URL`. The application uses that HTTPS URL automatically.
-   The gate username is `campuslink-tester`. Read the generated password from
+   The form only asks for the password. The gate username `campuslink-tester`
+   is retained for legacy HTTP clients. Read the generated password from
    Render's environment settings and share it privately with the selected
    testers. Keep it out of source, chat logs and URLs.
 5. Check the deployment logs and `/api/health`. Expect `mode: staging` and
    `public_launch_ready: false`. The latter is intentional: the service is a
    restricted test, not a student launch.
-6. Open the actual HTTPS address. First enter the tester gate credentials in
-   the browser prompt. The browser remembers this separate tester access for
+6. Open the actual HTTPS address. First enter the shared password on the
+   **Open CampusLink** tester access page. The browser remembers this access for
    seven days. Then create an individual fictional app account.
    There are no seeded Alice/Brian/moderator logins in staging.
 7. Use two independent browser sessions or phones to complete the checks below.
@@ -91,18 +93,23 @@ mode or seed the local database to work around an initialization error.
 
 ### Repeating tester password prompt
 
-Earlier source used HTTP Basic credentials on every request. An ordinary
-account-level 401 could clear the browser's HTTP-auth cache and reopen the
-tester prompt. The fix remembers accepted tester access in a separate signed
-cookie; it does not sign in to an individual account or bypass CSRF checks.
+The original Basic challenge caused repeated browser modals. The first
+cookie fix (`b93e69c`) deployed successfully, but the user still reported the
+problem. The current version removes the native challenge entirely. Opening
+`/tester-access` shows a normal form; rejected access passwords appear inline.
+Missing/blocked cookies receive an explicit error rather than a redirect loop.
+The form requires a same-origin, bounded POST and a separate CSRF cookie/token.
+Tester access never creates an individual account session.
 
-Deploy the latest commit using **Manual Deploy → Deploy latest commit** on
-the Render service and wait for **Live**. Then reload the HTTPS address. If
-the very first tester prompt still rejects the credentials before any page
-opens, copy the actual value of `CAMPUSLINK_STAGING_PASSWORD` from the service's
-Environment settings; the variable name and individual account passwords do
-not unlock the gate. If replacing it, use a random 24–128 character password,
-save/redeploy the environment change, and share the new value privately.
+Deploy the latest commit using **Manual Deploy → Deploy latest commit** and
+wait for **Live**. Cancel any old browser modal and reload
+<https://campuslink-staging.onrender.com/tester-access>. The expected page has
+an **Access password** field and **Continue** button, without a username popup.
+If the form rejects the password, copy the actual value of
+`CAMPUSLINK_STAGING_PASSWORD` from the service's Environment settings; the
+variable name and individual account passwords do not unlock the gate. If
+replacing it, use a random 24–128 character password, save/redeploy the change,
+and share the new value privately. This workspace cannot read Render's secret.
 
 ## Recovery email
 
@@ -134,12 +141,14 @@ Do not overwrite the active database while Uvicorn is using it.
 
 ## Hosted acceptance checks
 
-- Without gate credentials: the main page, JavaScript, APIs, photos and SSE
-  return 401. `/api/health` alone returns a minimal status.
+- Without gate credentials: page navigations redirect to `/tester-access`;
+  JavaScript, APIs, photos and SSE return 401 without `WWW-Authenticate`.
+  Only the access form and the minimal health endpoint are publicly available.
 - With gate credentials: registration/sign-in works over HTTPS, cookies are
   Secure/HttpOnly, and cross-origin or invalid-CSRF writes fail.
-- After accepting the tester prompt once, unsigned-in account checks, a wrong
-  individual password, refresh and application sign-out do not reopen it.
+- Wrong access passwords show an inline error. Correct access survives
+  unsigned-in account checks, wrong individual passwords, refresh and app
+  sign-out. Expired tester access returns to the form with a local return URL.
 - Two independent accounts can discover, match, exchange messages and confirm
   Sent/Delivered/Read. Private comments remain recipient-controlled requests.
 - Profile/post photos upload and remain accessible only under their normal
@@ -148,7 +157,7 @@ Do not overwrite the active database while Uvicorn is using it.
 - Redeploy/restart retains accounts, sessions, photos, posts and history.
 - Unmatch, Dating deactivation and block revoke access in both clients.
 - Perform a backup and a separate restore exercise, including actual images.
-- The phone's native gate prompt, keyboard, backgrounding and mobile-data use
+- The phone's tester form, keyboard, backgrounding and mobile-data use
   are observed on the actual hosted address. See [PHONE_TEST.md](PHONE_TEST.md).
 
 Local TLS browser checks are not a Render deployment, a trusted public
@@ -160,7 +169,7 @@ Push reviewed source to GitHub, take a fresh backup, then choose a manual
 deployment in Render. Automatic deployments are off to avoid unexpected
 restarts of the test service. After every deployment, check health and perform
 a two-account message/photo check. Rotate the shared gate password if it is
-disclosed; existing tester browser prompts will need the replacement value.
+disclosed; existing tester sessions will need the replacement value.
 
 ## Public launch remains separate
 

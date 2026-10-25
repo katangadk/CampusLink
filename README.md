@@ -50,7 +50,7 @@ Other fixtures: `chipo`, `david`, `esther`, `farai`, and `grace` at `campuslink.
 
 The deployment files are prepared for [katangadk/CampusLink](https://github.com/katangadk/CampusLink). Follow [DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Render Blueprint, shared tester gate, individual test accounts, persistent disk, HTTPS/proxy settings, backup/restore and hosted acceptance checks.
 
-`staging` requires an HTTPS canonical URL, a separate absolute database path and a random access password before it starts. Pages, assets, photos, APIs and live events are gated; only the minimal health endpoint is accessible without that password. Staging refuses the supplied demo database and demo seed command. Public/student-launch modes remain disabled. Creating the Render service uses paid compute/storage and remains a separate step from committing source.
+`staging` requires an HTTPS canonical URL, a separate absolute database path and a random access password before it starts. Pages, assets, photos, APIs and live events are gated; the tester access form and minimal health endpoint are available before access is granted. Browser password pop-ups are replaced by a normal access form with clear password/cookie errors. Staging refuses the supplied demo database and demo seed command. Public/student-launch modes remain disabled. Creating the Render service uses paid compute/storage and remains a separate step from committing source.
 
 ## Light and dark themes
 

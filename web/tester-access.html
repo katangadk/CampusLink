@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>CampusLink · Tester access</title>
+  <style>
+    :root { color-scheme: light dark; --page: #faf7f4; --card: #fff; --ink: #30272e; --muted: #6c6168; --line: #ddd3d9; --accent: #632d4c; --error: #9b2440; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 24px 16px; background: var(--page); color: var(--ink); font: 16px/1.6 system-ui, sans-serif; }
+    main { width: 100%; max-width: 440px; padding: clamp(24px, 6vw, 40px); background: var(--card); border: 1px solid var(--line); border-radius: 24px; }
+    .brand { margin: 0 0 32px; font-size: 23px; font-weight: 750; letter-spacing: -.7px; }
+    .badge { float: right; margin-top: 8px; font-size: 12px; letter-spacing: 0; color: var(--muted); font-weight: 500; }
+    h1 { font-size: 28px; line-height: 1.2; letter-spacing: -.8px; margin: 0 0 12px; }
+    p { margin: 0 0 24px; color: var(--muted); }
+    label { display: block; font-weight: 600; margin-bottom: 8px; }
+    input, button { width: 100%; min-height: 50px; border-radius: 12px; font: inherit; }
+    input { border: 1px solid var(--line); padding: 10px 14px; background: var(--page); color: var(--ink); }
+    button { border: 0; margin-top: 18px; padding: 12px 18px; font-weight: 650; background: var(--accent); color: white; cursor: pointer; }
+    :focus-visible { outline: 3px solid #ab7197; outline-offset: 3px; }
+    .error { color: var(--error); padding: 12px 14px; border: 1px solid currentColor; border-radius: 12px; font-size: 14px; }
+    .hint { margin: 20px 0 0; font-size: 14px; }
+    @media (prefers-color-scheme: dark) { :root { --page: #19151a; --card: #241e25; --ink: #f4edf2; --muted: #bdb1ba; --line: #51414e; --accent: #834b70; --error: #ffaabd; } }
+  </style>
+</head>
+<body>
+  <main id="main">
+    <div class="brand">CampusLink<span class="badge">Private test</span></div>
+    <h1>Open CampusLink</h1>
+    <p>Enter the access password shared with you to try CampusLink.</p>
+    {{ERROR}}
+    <form id="tester-access-form" action="/tester-access" method="post">
+      <input type="hidden" name="next" value="{{NEXT}}">
+      <input type="hidden" name="csrf" value="{{CSRF}}">
+      <label for="access-password">Access password</label>
+      <input id="access-password" name="password" type="password" autocomplete="current-password" required maxlength="128" autofocus>
+      <button type="submit">Continue</button>
+    </form>
+    <p class="hint">Next, sign in or create your own CampusLink account. Your account password is separate from this access password.</p>
+  </main>
+</body>
+</html>

@@ -144,7 +144,9 @@ The combined run uses two freshly registered accounts, an initially empty tempor
 - [x] Create the hosted service after Render account connection and review of the paid compute/storage estimate; user deployed `campuslink-staging`.
 - [x] Locate the actual HTTPS URL and verify its public health endpoint and restricted tester challenge.
 - [x] Remember accepted tester access separately from account login; pass 179 API tests and all seven TLS browser groups with one native tester challenge per browser.
-- [ ] Deploy the tester-cookie fix and confirm the repeating native password prompt is resolved on the hosted service.
+- [x] Deploy the initial cookie fix (`b93e69c`); Render confirmed success, but the user still reported the prompt.
+- [x] Replace native HTTP-auth prompts with an HTML access form, clear password/cookie errors, same-origin/CSRF protection and recovery of the original page; pass 199 API tests and eight TLS browser groups with zero native challenges.
+- [ ] Deploy the replacement HTML access form and confirm zero native prompts plus usable password/cookie errors on the hosted service.
 - [ ] Validate the actual Render URL, managed certificate, persistence across redeployment and off-Wi-Fi two-phone journey.
 - [ ] Record hosted backup/restore and actual email-delivery results if email is configured.
 

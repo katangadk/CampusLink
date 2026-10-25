@@ -4,7 +4,46 @@
 
 The local discovery → connection → conversation journey passes automated API and real-browser checks. This is evidence for the local build, not a claim of public readiness, production reliability, or successful student acceptance testing.
 
-## Repeating tester prompt and hosted status — 25 October 2026
+## HTML tester access replaces native popups — 25 October 2026
+
+Render confirmed successful deployment of the first cookie fix (`b93e69c`),
+and the user still reported the native password prompt. The current source
+replaces that challenge entirely with `/tester-access`: a normal HTML form
+that uses the existing shared access password, displays rejected passwords
+inline, and explains missing/blocked cookies. No response sends
+`WWW-Authenticate`. Application account sessions remain separate and existing
+tester cookies remain valid. The form requires a same-origin, CSRF-protected,
+bounded POST and only redirects to validated local paths. No schema or runtime
+dependency changes were needed.
+
+The complete API run passed **199 tests in 90.73 seconds**, including **73
+deployment/backup cases**, with the existing upstream TestClient deprecation
+warning. The additional form cases cover rejected/correct passwords, absence
+of native challenges, independent app login, Origin/CSRF rejection, body bounds
+and duplicate fields, escaping, safe return paths, failed-attempt limits,
+cookie persistence checks, HTTPS/host enforcement and allowed methods.
+
+`python -m tests.staging_browser` passed all **8 groups** in two independent
+390px/412px Chromium sessions. Both browsers typed a wrong access password,
+observed the inline error, then entered the correct password through the real
+form. No Authorization headers were injected and any native auth challenge
+would have been cancelled. The run recorded
+`tester_auth_challenges_per_browser: [0, 0]`. Wrong individual account
+passwords and refresh retained tester access. Fresh onboarding/photos/Dating,
+cross-program matching, bidirectional SSE, draft preservation, one-copy offline
+retry, forced restart, backup integrity and blocking passed. Deleting the
+tester cookie caused the actual app API client to open the form; re-entry
+returned to the original chat with the same account and persisted history.
+JavaScript syntax, diff whitespace and local documentation links also passed.
+
+These tests used temporary TLS certificates, databases and browsers. The
+replacement form still needs deploying to Render and actual Android
+confirmation; a code push alone does not establish either result. The current
+workspace has no Render deployment connection or access to its generated
+password. The first cookie fix's successful hosted deployment is distinct
+from accepting the new access form on the live service.
+
+## Initial tester-cookie fix and hosted status — 25 October 2026
 
 The user deployed <https://campuslink-staging.onrender.com>. GitHub's Render
 deployment reported success, the actual HTTPS health endpoint returned 200
@@ -103,7 +142,7 @@ Both physical devices are Android, but the updated real-phone keyboard, backgrou
 
 Command: `python3 -m pytest -q`
 
-**Latest result: 179 passed in 76.66 seconds (25 October 2026), with one upstream TestClient deprecation warning.** Fifty-three deployment/backup cases are described above; the earlier 126-case application result remains historical evidence. The 16 social/receipt cases cover public reactions, legacy-private separation, private requests/recipient decisions, concurrent acceptance, posted-photo validation and privacy, persistence, safe retry, edit/delete, campus/block rules, receipt acknowledgements, CSRF, schema-4 upgrades and independent quotas for accounts sharing Wi-Fi. Tests run against isolated temporary SQLite databases and independent authenticated clients. No external email or institutional service was contacted. The photo phase adds 21 cases covering supported image formats, EXIF orientation, metadata stripping, compression, persistence, gallery ordering, concurrent/idempotent uploads, ownership, visibility, dating eligibility, blocking, account deletion/deactivation, invalid/animated/oversized images, streamed-body limits, CSRF and the version-1 database upgrade. The prompt phase adds 25 cases covering the catalog, optional answers, editing/order/removal, restart persistence, safe plain-text/Unicode limits, invalid replacement rollback, CSRF, owner scope, atomic concurrent saves, existing visibility/eligibility/block rules, account lifecycle and upgrading a version-2 database without losing photos, users or sessions. The intention phase adds 19 cases covering private/unset defaults, all labels, editing/hiding/removal, retries/restarts, default and specific filters, general/friend/study exclusions, forged Dating contexts, consent and eligibility rules, validation rollback, CSRF/ownership, account lifecycle and preserving photos, prompts, users and sessions through a version-3 upgrade. The starter phase adds 15 cases covering shared interests and visible answers, no-overlap fallback, bounded/current plain text, private-data exclusions, reads without message/notification/cursor changes, authentication/membership, non-dating and pending connections, revoked consent/eligibility, accepted hidden profiles, and persistent duplicate-safe sending of edited starter text.
+**Latest result: 199 passed in 90.73 seconds (25 October 2026), with one upstream TestClient deprecation warning.** Seventy-three deployment/backup cases are described above; the earlier 126-case application result remains historical evidence. The 16 social/receipt cases cover public reactions, legacy-private separation, private requests/recipient decisions, concurrent acceptance, posted-photo validation and privacy, persistence, safe retry, edit/delete, campus/block rules, receipt acknowledgements, CSRF, schema-4 upgrades and independent quotas for accounts sharing Wi-Fi. Tests run against isolated temporary SQLite databases and independent authenticated clients. No external email or institutional service was contacted. The photo phase adds 21 cases covering supported image formats, EXIF orientation, metadata stripping, compression, persistence, gallery ordering, concurrent/idempotent uploads, ownership, visibility, dating eligibility, blocking, account deletion/deactivation, invalid/animated/oversized images, streamed-body limits, CSRF and the version-1 database upgrade. The prompt phase adds 25 cases covering the catalog, optional answers, editing/order/removal, restart persistence, safe plain-text/Unicode limits, invalid replacement rollback, CSRF, owner scope, atomic concurrent saves, existing visibility/eligibility/block rules, account lifecycle and upgrading a version-2 database without losing photos, users or sessions. The intention phase adds 19 cases covering private/unset defaults, all labels, editing/hiding/removal, retries/restarts, default and specific filters, general/friend/study exclusions, forged Dating contexts, consent and eligibility rules, validation rollback, CSRF/ownership, account lifecycle and preserving photos, prompts, users and sessions through a version-3 upgrade. The starter phase adds 15 cases covering shared interests and visible answers, no-overlap fallback, bounded/current plain text, private-data exclusions, reads without message/notification/cursor changes, authentication/membership, non-dating and pending connections, revoked consent/eligibility, accepted hidden profiles, and persistent duplicate-safe sending of edited starter text.
 
 Covered: registration/login, CSRF and origin protection, onboarding persistence, safe profile projections, discovery eligibility and search, friendship/study lifecycle, simultaneous requests, guessed conversation IDs, unread counts, both-direction blocking, concurrent retry deduplication, history pagination, dating privacy and reciprocal eligibility, unmatching/disable, moderator roles and audits, password change and session revocation, deletion/deactivation, persisted rate limits, restart persistence, and recovery token expiry, one-time use, generic responses and session revocation.
 

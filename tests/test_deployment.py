@@ -3,13 +3,14 @@ from pathlib import Path
 import sqlite3
 import time
 import uuid
+from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
 import pytest
 
 from campuslink.app import create_app, ROOT
 from campuslink.backup import backup_database
-from campuslink.deployment import ACCESS_COOKIE, ACCESS_SECONDS, Deployment
+from campuslink.deployment import ACCESS_COOKIE, ACCESS_CSRF_COOKIE, ACCESS_PATH, ACCESS_SECONDS, Deployment
 from campuslink.seed import seed
 from campuslink.serve import options
 from .conftest import sql
@@ -53,9 +54,14 @@ def register(c, name):
     ('/api/catalog','GET'),('/api/events','GET'),('/api/feed','GET'),('/api/me/photos','POST'),
     ('/api/auth/register','POST'),('/api/photos/unknown','GET'),('/api/post-photos/unknown','GET')])
 def test_gate_protects_pages_assets_apis_photos_and_streams(staging, path, method):
-    response = client(staging, gate=False).request(method, path)
-    assert response.status_code == 401
-    assert response.headers['WWW-Authenticate'].startswith('Basic ')
+    response = client(staging, gate=False).request(method, path, follow_redirects=False)
+    navigation = method == 'GET' and path in ('/', '/signup')
+    assert response.status_code == (303 if navigation else 401)
+    assert 'WWW-Authenticate' not in response.headers
+    if navigation:
+        assert response.headers['location'].startswith(ACCESS_PATH+'?next=')
+    else:
+        assert response.json()['tester_access_required'] is True
     assert response.headers['Cache-Control'] == 'no-store'
     assert response.headers['X-Robots-Tag'] == 'noindex, nofollow, noarchive'
     assert response.headers['Strict-Transport-Security'].startswith('max-age=')
@@ -103,8 +109,8 @@ def test_health_and_failed_gate_attempts_never_grant_tester_cookies(staging):
     for c in (client(staging), client(staging, gate=False)):
         response = c.get('/api/health')
         assert response.status_code == 200 and 'set-cookie' not in response.headers
-    response = client(staging, gate=False).get('/signup')
-    assert response.status_code == 401 and 'set-cookie' not in response.headers
+    response = client(staging, gate=False).get('/signup', follow_redirects=False)
+    assert response.status_code == 303 and 'set-cookie' not in response.headers
 
 
 @pytest.mark.parametrize('value', ['', 'invalid', '1.nonce.mac', 'x'*161,
@@ -176,11 +182,120 @@ def test_trusted_proxy_preserves_https_origin_and_secure_sessions(staging):
 
 def test_wrong_gate_attempts_are_limited_without_locking_out_valid_testers(staging):
     c = client(staging, gate=False)
+    c.headers['Authorization'] = 'Basic ' + base64.b64encode(b'wrong:wrong').decode()
     assert c.get('/api/catalog').status_code == 401
     sql(staging, 'UPDATE rate_limits SET count=30 WHERE key="staging-gate:testclient"')
     assert c.get('/api/catalog').status_code == 429
     assert client(staging).get('/api/catalog').status_code == 200
     assert c.get('/api/health').status_code == 200
+
+
+def access_form(c, target='/signup'):
+    response = c.get(ACCESS_PATH+'?'+urlencode({'next':target}))
+    assert response.status_code == 200
+    csrf = c.cookies.get(ACCESS_CSRF_COOKIE)
+    assert f'name="csrf" value="{csrf}"' in response.text
+    return {'password':PASSWORD, 'csrf':csrf, 'next':target}
+
+
+def test_browser_access_form_rejects_password_clearly_then_opens_app(staging):
+    c = client(staging, gate=False)
+    fields = access_form(c, '/chats')
+    wrong = c.post(ACCESS_PATH, data={**fields,'password':'Wrong-access-password!'},headers={'Origin':ORIGIN})
+    assert wrong.status_code == 401 and 'WWW-Authenticate' not in wrong.headers
+    assert 'That access password was not accepted' in wrong.text
+    assert 'Wrong-access-password!' not in wrong.text and PASSWORD not in wrong.text
+    assert ACCESS_COOKIE not in c.cookies and 'campuslink_session' not in c.cookies
+    response = c.post(ACCESS_PATH, data=fields, headers={'Origin':ORIGIN}, follow_redirects=False)
+    assert response.status_code == 303
+    assert 'check=1' in response.headers['location']
+    assert ACCESS_COOKIE in c.cookies and ACCESS_CSRF_COOKIE not in c.cookies
+    checked = c.get(response.headers['location'], follow_redirects=False)
+    assert checked.status_code == 303 and checked.headers['location'] == '/chats'
+    assert c.get('/chats').status_code == 200
+    assert c.get('/api/me').status_code == 401  # Tester access is not app login.
+    assert c.get('/api/catalog').status_code == 200
+
+
+@pytest.mark.parametrize('attack', ['missing-origin','cross-origin','cross-site','missing-csrf','wrong-csrf','unicode-csrf'])
+def test_browser_access_form_requires_same_origin_and_csrf(staging, attack):
+    c = client(staging, gate=False)
+    fields = access_form(c)
+    headers = {'Origin':ORIGIN}
+    if attack == 'missing-origin': headers.clear()
+    if attack == 'cross-origin': headers['Origin'] = 'https://attacker.test'
+    if attack == 'cross-site': headers['Sec-Fetch-Site'] = 'cross-site'
+    if attack == 'missing-csrf': c.cookies.clear()
+    if attack == 'wrong-csrf': fields['csrf'] = 'wrong'
+    if attack == 'unicode-csrf': fields['csrf'] = 'é'*43
+    response = c.post(ACCESS_PATH, data=fields, headers=headers)
+    assert response.status_code == 403 and 'WWW-Authenticate' not in response.headers
+    assert ACCESS_COOKIE not in c.cookies
+
+
+@pytest.mark.parametrize('target', ['https://attacker.test','//attacker.test','/\\attacker.test',
+    '/%2f%2fattacker.test','/%5cattacker.test','/%0d%0aLocation:evil',ACCESS_PATH+'?next=/chats','x'*1025])
+def test_browser_access_form_refuses_external_or_recursive_next_urls(staging, target):
+    c = client(staging, gate=False)
+    fields = access_form(c, target)
+    response = c.post(ACCESS_PATH, data=fields, headers={'Origin':ORIGIN}, follow_redirects=False)
+    checked = c.get(response.headers['location'], follow_redirects=False)
+    assert checked.status_code == 303 and checked.headers['location'] == '/signup'
+
+
+def test_browser_access_form_detects_blocked_cookies_without_redirect_loop(staging):
+    c = client(staging, gate=False)
+    response = c.post(ACCESS_PATH,data=access_form(c),headers={'Origin':ORIGIN},follow_redirects=False)
+    assert response.status_code == 303
+    blocked = client(staging, gate=False).get(response.headers['location'])
+    assert blocked.status_code == 200 and not blocked.history
+    assert 'Your browser did not keep the access cookie' in blocked.text
+    assert 'WWW-Authenticate' not in blocked.headers
+
+
+def test_browser_access_form_limits_failed_passwords_but_accepts_correct_one(staging):
+    c = client(staging, gate=False)
+    fields = access_form(c)
+    assert not sql(staging,'SELECT * FROM rate_limits WHERE key="staging-gate:testclient"')
+    assert c.post(ACCESS_PATH,data={**fields,'password':'wrong'},headers={'Origin':ORIGIN}).status_code == 401
+    sql(staging,'UPDATE rate_limits SET count=30 WHERE key="staging-gate:testclient"')
+    limited = c.post(ACCESS_PATH,data={**fields,'password':'wrong'},headers={'Origin':ORIGIN})
+    assert limited.status_code == 429 and limited.headers['Retry-After'] == '60'
+    assert c.post(ACCESS_PATH,data=fields,headers={'Origin':ORIGIN},follow_redirects=False).status_code == 303
+
+
+def test_browser_access_form_bounds_and_validates_body(staging):
+    c = client(staging, gate=False)
+    fields = access_form(c)
+    headers = {'Origin':ORIGIN,'Content-Type':'application/x-www-form-urlencoded'}
+    too_large = c.post(ACCESS_PATH,content=iter([b'x'*2048,b'y'*2049]),headers=headers)
+    assert too_large.status_code == 413
+    assert c.post(ACCESS_PATH,json=fields,headers={'Origin':ORIGIN}).status_code == 415
+    duplicate = urlencode(fields)+'&password=duplicate'
+    assert c.post(ACCESS_PATH,content=duplicate,headers=headers).status_code == 403
+    assert ACCESS_COOKIE not in c.cookies
+
+
+def test_browser_access_form_escapes_values_and_disables_scripts(staging):
+    c = client(staging, gate=False)
+    target = '/?x=\"><script>alert(1)</script>&y={{ERROR}}&z={{CSRF}}'
+    response = c.get(ACCESS_PATH+'?'+urlencode({'next':target}))
+    assert '<script>' not in response.text and '&lt;script&gt;' in response.text
+    assert '&y={{ERROR}}&amp;z={{CSRF}}' not in response.text  # Ampersands must be escaped too.
+    assert '{{ERROR}}' in response.text and '{{CSRF}}' in response.text  # No recursive template expansion.
+    assert "default-src 'none'" in response.headers['Content-Security-Policy']
+    assert 'WWW-Authenticate' not in response.headers
+    assert response.headers['Cache-Control'] == 'no-store'
+    for flag in ('Secure','HttpOnly','SameSite=lax','Path=/'):
+        assert flag in response.headers['set-cookie']
+    assert c.get('/assets/tester-access.html').status_code == 401
+
+
+def test_browser_access_form_keeps_https_host_and_method_rules(staging):
+    assert client(staging,gate=False,origin=ORIGIN.replace('https:','http:')).get(ACCESS_PATH).status_code == 403
+    assert client(staging,gate=False,origin='https://other.test').get(ACCESS_PATH).status_code == 400
+    response = client(staging,gate=False).delete(ACCESS_PATH)
+    assert response.status_code == 405 and response.headers['Allow'] == 'GET, POST'
 
 
 def test_staging_keeps_csrf_and_persists_accounts_messages_photos_after_backup(staging, tmp_path):

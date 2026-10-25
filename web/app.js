@@ -51,7 +51,7 @@ const publicHeader = () => `<div class="public-header">${brand()}${stagingBadge(
 const labels = {friend:'Friends',study:'Study',dating:'Dating'};
 const state = {user:null,csrf:'',catalog:{interests:[]},connections:[],chats:[],notifications:[],requests:[],postDraft:{},delivered:new Map(),read:new Map(),mode:'dating',chatFilter:'all',connectionFilter:'dating',connectionLoaded:false,connectionLoading:false,connectionError:'',chatLoaded:false,chatLoading:false,chatError:'',selected:null,messages:[],older:false,query:'',program:'',interest:'',year:0,intention:'',page:1,students:[],hasMore:false,filtersOpen:false,live:false,searchSerial:0,drafts:new Map(),outbox:new Map(),starterOpen:new Map()};
 let feedManager, readTimer;
-let source, toastTimer, searchTimer, refreshTimer, photoManager, promptManager, starterManager, refreshing=false;
+let source, toastTimer, searchTimer, refreshTimer, photoManager, promptManager, starterManager, refreshing=false, testerRedirecting=false;
 const app = $('#app');
 const path = () => location.pathname;
 const initials = p => (p.display_name||'?').split(/\s+/).slice(0,2).map(s=>s[0]).join('').toUpperCase();
@@ -65,6 +65,10 @@ async function api(url,method='GET',data,extraHeaders={}){
   const binary=data instanceof Blob;
   const response = await fetch('/api'+url,{method,headers:{...(data!==undefined?{'Content-Type':binary?(data.type||'application/octet-stream'):'application/json'}:{}),...extraHeaders,...(method!=='GET'?{'X-CSRF-Token':state.csrf}:{})},body:data!==undefined?(binary?data:JSON.stringify(data)):undefined,credentials:'same-origin'});
   const result = await response.json();
+  if(response.status===401&&result.tester_access_required){
+    if(!testerRedirecting){testerRedirecting=true;location.assign('/tester-access?next='+encodeURIComponent(location.pathname+location.search));}
+    const e=new Error('Tester access is required.');e.stale=true;throw e;
+  }
   if(authEpoch!==(state.authEpoch||0)){const e=new Error('Session changed.');e.stale=true;throw e;}
   if(!response.ok){const e=new Error(typeof result.detail==='string'?result.detail:'Please check your details and try again.');e.status=response.status;throw e;}
   return result;

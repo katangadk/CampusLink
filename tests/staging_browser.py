@@ -81,8 +81,8 @@ class StagingJourney(Journey):
         driver.execute_cdp_cmd('Emulation.setDeviceMetricsOverride',{'width':width,'height':height,'deviceScaleFactor':1,'mobile':True})
         driver.execute_cdp_cmd('Emulation.setTouchEmulationEnabled',{'enabled':True})
         driver.execute_cdp_cmd('Network.enable',{})
-        # Answer the actual browser HTTP-auth challenge once. Supplying an
-        # Authorization header on every request hides repeated native prompts.
+        # A native browser challenge is always a failure. Test real HTML form
+        # entry instead of supplying Authorization headers or modal credentials.
         devtools, connection = driver.start_devtools()
         challenges = self.gate_challenges[driver.session_id] = []
         connection.add_callback(devtools.fetch.RequestPaused,
@@ -90,9 +90,6 @@ class StagingJourney(Journey):
         def authenticate(event):
             challenges.append(event.request.url)
             response = devtools.fetch.AuthChallengeResponse(response='CancelAuth')
-            if len(challenges) == 1:
-                response = devtools.fetch.AuthChallengeResponse(response='ProvideCredentials',
-                    username='qa-tester', password=self.gate_password)
             connection.execute(devtools.fetch.continue_with_auth(event.request_id,response))
         connection.add_callback(devtools.fetch.AuthRequired,authenticate)
         connection.execute(devtools.fetch.enable(handle_auth_requests=True))
@@ -119,13 +116,22 @@ def run():
             j.start()
             with j.http(gate=False) as c:
                 assert c.get('/api/health').json()=={'status':'ok','mode':'staging','public_launch_ready':False}
-                for path in ('/signup','/assets/app.js','/api/catalog','/api/events','/api/photos/unknown'):
+                for path in ('/assets/app.js','/api/catalog','/api/events','/api/photos/unknown'):
                     response=c.get(path)
-                    assert response.status_code==401 and 'WWW-Authenticate' in response.headers
+                    assert response.status_code==401 and 'WWW-Authenticate' not in response.headers
+                assert c.get('/signup').status_code==303
             j.passed('real TLS gate protects UI, assets, APIs, photos and SSE; public health exposes no account data')
             a,b=j.browser(390,844),j.browser(412,915)
             for driver in (a,b):
                 driver.get(j.url+'/signup')
+                j.wait(driver,'#tester-access-form')
+                j.fill(driver,'#access-password','Wrong-access-password!')
+                j.click(driver,'#tester-access-form [type=submit]')
+                error=j.wait(driver,'.error[role=alert]')
+                assert 'access password was not accepted' in error.text
+                assert not any(c['name']==ACCESS_COOKIE for c in driver.get_cookies())
+                j.fill(driver,'#access-password',j.gate_password)
+                j.click(driver,'#tester-access-form [type=submit]')
                 j.wait(driver,'#auth-form')
                 for _ in range(3):
                     j.api(driver,'/api/me',status=401)
@@ -140,8 +146,8 @@ def run():
                 assert cookie['secure'] and cookie['httpOnly'] and cookie['sameSite']=='Lax'
                 driver.refresh()
                 j.wait(driver,'#auth-form')
-                assert len(j.gate_challenges[driver.session_id])==1
-            j.passed('native tester challenge is answered once per browser; secure tester cookies survive account 401 responses, wrong individual passwords and refresh without another prompt')
+                assert len(j.gate_challenges[driver.session_id])==0
+            j.passed('HTML access form shows rejected passwords inline; correct access persists across account 401 responses, wrong individual passwords and refresh with zero native prompts')
             ua=j.register(a,'staging_ada','Staging Ada','Computer Science',2)
             ub=j.register(b,'staging_ben','Staging Ben','Business Administration',3)
             j.activate(a,'woman','man','relationship',True)
@@ -177,11 +183,21 @@ def run():
                 assert con.execute('SELECT count(*) FROM messages').fetchone()[0]==5
                 assert con.execute('SELECT count(*) FROM profile_photos').fetchone()[0]==2
             j.passed('online SQLite backup retains both users, five messages and processed photos with a passing integrity check')
+            a.delete_cookie(ACCESS_COOKIE)
+            a.execute_script("document.dispatchEvent(new Event('visibilitychange'))")
+            j.wait(a,'#tester-access-form')
+            j.fill(a,'#access-password',j.gate_password)
+            j.click(a,'#tester-access-form [type=submit]')
+            j.wait(a,'.conversation-item')
+            j.click(a,'.conversation-item')
+            j.text(a,'A message after the hosted test restarts.')
+            assert j.me(a)['id']==ua['id']
+            j.passed('expired tester access opens the HTML form and returns to the original chat after re-entry, retaining the individual account and history')
             j.click(a,'#chat-safety > summary');j.click(a,'#chat-safety [data-action=confirm-block-dialog]');j.click(a,'#dialog [data-action=block-student]')
             j.revoked((a,b),rid)
             j.api(b,photo,status=404)
             for d in (a,b):
-                assert len(j.gate_challenges[d.session_id])==1
+                assert len(j.gate_challenges[d.session_id])==0
                 assert not d.execute_script('return document.documentElement.scrollWidth>innerWidth')
                 errors=[e for e in d.get_log('browser') if any(t in e['message'] for t in ('Uncaught','SyntaxError','Content Security Policy'))]
                 assert not errors,errors
