@@ -1,0 +1,94 @@
+/* Compact discovery, with the detail reserved for the opened profile. */
+.discovery-layout { grid-template-columns: minmax(0, 1fr); }
+.tabs[aria-label="Discovery categories"] { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+.tabs[aria-label="Discovery categories"] button { flex: none; }
+.searchbar { margin-bottom: 20px; }
+.compact-card { padding: 14px; gap: 14px; }
+.compact-card .dating-photo { aspect-ratio: 4 / 3; border-radius: 12px; }
+.compact-card .dating-photo-open { position: relative; }
+.compact-card .academic { margin-top: 2px; }
+.compact-card .test-label { margin-top: 5px; font-size: 10px; }
+.compact-card .card-actions { margin-top: auto; }
+.photo-profile-hint { position: absolute; bottom: 12px; right: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 20px; color: var(--on-primary); background: var(--primary); font-size: 11px; }
+.photo-profile-hint svg { width: 14px; height: 14px; }
+.profile-photo-button { padding: 0; border-radius: 50%; min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; flex: none; }
+.dating-photo-open:focus-visible { outline-offset: -5px; }
+.profile-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+
+/* Conversation layout uses stable regions: header, optional help, log, composer. */
+.chat-screen .page-heading { margin-bottom: 20px; }
+.chat-screen .page-heading h1 { font-size: 28px; }
+.chat-layout { height: calc(100dvh - 210px); min-height: 420px; grid-template-columns: 290px minmax(0,1fr); }
+.chat-header { flex: none; padding: 14px 20px; gap: 10px; min-height: 76px; }
+.chat-pane { position: relative; }
+.new-message-jump { position: absolute; z-index: 2; bottom: calc(var(--chat-footer-height,118px) + 12px); left: 50%; transform: translateX(-50%); padding: 9px 15px; min-height: 44px; border-radius: 24px; background: var(--primary); color: var(--on-primary); border: 1px solid var(--border); box-shadow: var(--shadow); white-space: nowrap; font-size: 12px; }
+.new-message-jump[hidden] { display: none; }
+.chat-header .chat-profile { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 44px; text-align: left; padding: 0; margin-right: auto; }
+.chat-profile > span:last-child { min-width: 0; }
+.chat-profile strong { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); max-width: 260px; }
+.chat-profile small { color: var(--muted); font-size: 11px; display: block; }
+.chat-header .icon-button { min-width: 44px; min-height: 44px; }
+.conversation-starters { background: var(--surface); }
+.starter-toggle { padding: 10px 20px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.starter-toggle span:last-child { font-size: 17px; }
+.starter-choices { max-height: min(180px, 25dvh); }
+.messages { background: var(--background); gap: 0; padding: 20px 24px 12px; overscroll-behavior: contain; overflow-anchor: none; }
+.messages:has(.message)::before { content: ""; flex: 1; min-height: 0; }
+.message-date { flex: none; align-self: center; color: var(--muted); font-size: 10px; padding: 8px 12px; margin-bottom: 18px; }
+.message { display: flex; flex-shrink: 0; align-items: flex-end; gap: 8px; max-width: 84%; margin-top: 17px; }
+.message.is-grouped { margin-top: 4px; }
+.message-content { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.own .message-content { align-items: flex-end; }
+.message .bubble { border-radius: 20px; padding: 11px 16px; font-size: 14px; line-height: 1.5; color: var(--text); background: var(--surface); box-shadow: 0 1px 2px #00000004; }
+.message.own .bubble { background: var(--primary); color: var(--on-primary); }
+.message.incoming.group-end .bubble { border-bottom-left-radius: 5px; }
+.message.own.group-end .bubble { border-bottom-right-radius: 5px; }
+.message-avatar { width: 34px; flex: none; align-self: flex-end; padding-bottom: 14px; }
+.message-avatar .profile-photo-button { min-width: 34px; min-height: 44px; width: 34px; }
+.message-avatar .avatar { width: 30px; height: 30px; font-size: 10px; }
+.message-meta { min-height: 14px; gap: 8px; align-items: center; padding: 3px 3px 0; font-size: 10px; }
+.message:not(.group-end):not(.pending-message) .message-meta { min-height: 0; padding: 0; height: 0; position: relative; }
+.conversation-empty { margin: auto; text-align: center; padding: 30px; }
+.conversation-empty p { font-size: 18px; color: var(--primary); margin-bottom: 5px; }
+.conversation-empty span { color: var(--muted); font-size: 12px; }
+.composer { flex: none; background: var(--surface); align-items: flex-end; border-top: 0; padding: 14px 18px; }
+.composer textarea { border-radius: 24px; background: var(--background); border: 1px solid var(--border); font-size: 14px; padding: 12px 16px; resize: none; max-height: 120px; min-height: 46px; }
+.composer .btn { width: 46px; height: 46px; min-width: 46px; min-height: 46px; border-radius: 50%; padding: 12px; }
+.chat-safety, .profile-safety { border-top: 1px solid var(--border); color: var(--muted); background: var(--surface); }
+.chat-safety { flex: none; padding: 0 16px; max-height: 35%; overflow: auto; overscroll-behavior: contain; }
+.chat-safety summary, .profile-safety summary { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 12px; cursor: pointer; list-style: none; }
+.chat-safety summary::-webkit-details-marker, .profile-safety summary::-webkit-details-marker { display: none; }
+.chat-safety summary svg, .profile-safety summary svg { width: 16px; height: 16px; }
+.safety-chevron { margin-left: auto; font-size: 17px; }
+details[open] > summary .safety-chevron { transform: rotate(45deg); }
+.safety-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 0 12px; }
+.safety-actions .btn { min-height: 44px; font-size: 12px; }
+#report-form select { min-width: 0; max-width: 100%; }
+[data-theme="dark"] .message .bubble { background: #302536; color: var(--text); }
+[data-theme="dark"] .message.own .bubble { background: #673b5c; color: #fff4fb; }
+[data-theme="dark"] .composer textarea { background: var(--background); }
+@media (min-width: 1500px) { .profile-grid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); } }
+@media (max-width: 900px) and (min-width: 721px) { .chat-layout { grid-template-columns: 235px minmax(0,1fr); } }
+@media (max-width: 720px) {
+  .compact-card, .student-card.compact-card { padding: 12px; gap: 13px; }
+  .chat-layout { grid-template-columns: 1fr; height: calc(100dvh - 245px); min-height: 350px; }
+  body.conversation-open { overflow: hidden; }
+  .conversation-open .topbar { display: none; }
+  .conversation-open .sidebar { display: flex; position: fixed; top: calc(var(--chat-top,0px) + var(--chat-height,100dvh) - 68px - env(safe-area-inset-bottom)); bottom: auto; z-index: 11; }
+  .conversation-open .workspace { padding-bottom: 0; }
+  .conversation-open .chat-screen { padding: 0; max-width: none; }
+  .conversation-open .chat-screen > .page-heading { display: none; }
+  .conversation-open .chat-layout { position: fixed; top: var(--chat-top,0px); left: 0; right: 0; width: 100%; height: calc(var(--chat-height,100dvh) - 68px - env(safe-area-inset-bottom)); min-height: 0; border: 0; border-radius: 0; z-index: 10; }
+  .chat-header { padding: calc(10px + env(safe-area-inset-top)) 12px 10px; min-height: 70px; }
+  .chat-header .chat-profile { gap: 9px; }
+  .chat-profile strong { font-size: 15px; max-width: 190px; }
+  .chat-header .back-chat { min-width: 40px; padding: 8px; }
+  .messages { padding: 12px 16px 8px; }
+  .message { max-width: 90%; gap: 6px; }
+  .message .bubble { font-size: 14px; padding: 10px 14px; }
+  .composer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); gap: 8px; }
+  .composer textarea { font-size: 16px; }
+  .starter-toggle { padding: 8px 18px; }
+  .conversation-open #toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) { .dating-photo-open img { transition: transform .2s; } .dating-photo-open:hover img { transform: scale(1.025); } }

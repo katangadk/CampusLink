@@ -1,0 +1,79 @@
+/* Brief, optional motion. No layout animation, delayed actions or scroll hijacking. */
+:root { --ease-out: cubic-bezier(.2,.75,.3,1); --motion-fast: 140ms; --motion-enter: 220ms; }
+.student-card, .feed-post, .connection-card { box-shadow: 0 2px 12px #43283f05; }
+.profile-social-actions button[aria-pressed="true"] > svg,
+.profile-public-likes button[aria-pressed="true"] > svg,
+.post-actions button[aria-pressed="true"] > svg { fill: currentColor; }
+.toast-icon { display: inline-flex; margin-right: 9px; vertical-align: middle; }
+.toast-icon svg { width: 18px; height: 18px; fill: currentColor; }
+.loading-cards { min-width: 0; }
+.loading-label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+.skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(100%,250px),1fr)); gap: 18px; }
+.skeleton-card { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.skeleton { border-radius: 7px; background: var(--secondary); }
+.skeleton-photo { aspect-ratio: 4/3; margin-bottom: 17px; border-radius: 12px; }
+.skeleton-line { height: 14px; width: 65%; margin-bottom: 12px; }
+.skeleton-line.short { width: 42%; height: 10px; }
+.skeleton-actions { height: 42px; margin-top: 24px; }
+.loading-posts .skeleton-grid { grid-template-columns: 1fr; }
+.loading-posts .skeleton-photo { aspect-ratio: 2/1; }
+.profile-social-actions button[aria-busy="true"]::after,
+.post-actions button[aria-busy="true"]::after,
+.composer button[aria-busy="true"]::after,
+#post-form[aria-busy="true"] button[type="submit"]::before {
+  content: ""; display: inline-block; flex: none; width: 12px; height: 12px;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+}
+.composer button[aria-busy="true"] > svg { display: none; }
+.composer button[aria-busy="true"]::after { width: 19px; height: 19px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  :is(.btn, .icon-button, .profile-social-actions button, .post-actions button, .nav a, .tabs button, .starter-choice) {
+    transition: background-color var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
+  }
+  :is(.btn, .icon-button, .profile-social-actions button, .post-actions button):active:not(:disabled) { transform: translateY(1px); }
+  input, textarea, select { transition: border-color var(--motion-fast), box-shadow var(--motion-fast); }
+  input:focus, textarea:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--secondary); }
+  .page-heading { animation: cl-heading 180ms var(--ease-out); }
+  dialog[open] { animation: cl-dialog var(--motion-enter) var(--ease-out); }
+  dialog[open]::backdrop { animation: cl-backdrop 180ms ease-out; }
+  .match-celebration > svg { animation: cl-heart 360ms var(--ease-out); }
+  .tabs button.active::after { animation: cl-tab 180ms var(--ease-out); transform-origin: center; }
+  .nav a.active > svg { animation: cl-nav 200ms var(--ease-out); }
+  .safety-chevron { transition: transform 160ms var(--ease-out); }
+  details[open] > .safety-actions { animation: cl-heading 160ms ease-out; }
+  .motion-enter { animation: cl-enter var(--motion-enter) var(--ease-out) both; }
+  .motion-message { animation: cl-message 180ms var(--ease-out) both; }
+  .motion-message.own { transform-origin: right bottom; }
+  .motion-message.incoming { transform-origin: left bottom; }
+  .motion-heart { animation: cl-heart 320ms var(--ease-out); }
+  .toast-icon { animation: cl-heart 320ms var(--ease-out); }
+  .motion-enter[data-motion-step="1"] { animation-delay: 20ms; }
+  .motion-enter[data-motion-step="2"] { animation-delay: 40ms; }
+  .motion-enter[data-motion-step="3"] { animation-delay: 60ms; }
+  .motion-enter[data-motion-step="4"] { animation-delay: 80ms; }
+  .skeleton { background-image: linear-gradient(100deg,transparent 20%,var(--surface) 50%,transparent 80%); background-size: 220% 100%; animation: cl-loading 1.6s linear infinite; }
+  .profile-social-actions button[aria-busy="true"]::after,
+  .post-actions button[aria-busy="true"]::after,
+  .composer button[aria-busy="true"]::after,
+  #post-form[aria-busy="true"] button[type="submit"]::before { animation: cl-spin .8s linear infinite; }
+  @keyframes cl-heading { from { opacity: .7; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
+  @keyframes cl-enter { from { opacity: .65; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes cl-dialog { from { opacity: .7; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
+  @keyframes cl-backdrop { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes cl-message { from { opacity: .65; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @keyframes cl-heart { 0%,100% { transform: scale(1); } 45% { transform: scale(1.22); } 75% { transform: scale(.97); } }
+  @keyframes cl-tab { from { transform: scaleX(.55); opacity: .65; } to { transform: scaleX(1); opacity: 1; } }
+  @keyframes cl-nav { from { transform: translateY(2px); } to { transform: translateY(0); } }
+  @keyframes cl-loading { from { background-position: 140% 0; } to { background-position: -80% 0; } }
+  @keyframes cl-spin { to { transform: rotate(360deg); } }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .student-card, .feed-post, .connection-card { transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), border-color 180ms; }
+  .student-card:hover, .feed-post:hover, .connection-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px #43283f0c; border-color: var(--primary); }
+  .dating-photo-open img { transition: transform 240ms var(--ease-out); }
+  .dating-photo-open:hover img { transform: scale(1.025); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

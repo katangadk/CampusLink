@@ -1,0 +1,127 @@
+/* Keep theme overrides together; photos retain their original colors. */
+:root {
+  color-scheme: light;
+  --on-primary: #fff;
+  --focus: #9d5f94;
+}
+
+.theme-toggle {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--primary);
+  background: var(--surface);
+}
+.theme-toggle:hover { background: var(--secondary); }
+.theme-toggle .theme-icon-sun { display: none; }
+[data-theme="dark"] .theme-toggle .theme-icon-sun { display: inline-flex; }
+[data-theme="dark"] .theme-toggle .theme-icon-moon { display: none; }
+.public-header, .landing-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.landing-nav { gap: 12px; flex-wrap: wrap; }
+.onboarding .public-header, .legal .public-header { margin-bottom: 35px; }
+.public-header .brand { margin-bottom: 0; }
+.topbar { gap: 12px; }
+.topbar .context { min-width: 0; }
+.topbar .context strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-actions { flex-shrink: 0; }
+.topbar-actions .theme-toggle { border: 1px solid var(--border); background: var(--surface); }
+.topbar-actions .theme-toggle:hover { background: var(--secondary); }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --primary: #edb9dc;
+  --secondary: #30253c;
+  --accent: #f2a4c7;
+  --background: #15111b;
+  --surface: #211a29;
+  --text: #f2edf7;
+  --muted: #b7acbf;
+  --border: #42364c;
+  --success: #90d7b0;
+  --warning: #f3c081;
+  --error: #ffafbc;
+  --on-primary: #281c2c;
+  --focus: #e6a8d5;
+  --shadow: 0 5px 24px #0003;
+}
+
+[data-theme="dark"] :focus-visible,
+[data-theme="dark"] .interest-option input:focus-visible + span { outline-color: var(--focus); }
+[data-theme="dark"] :is(.skip-link, .sidebar, .topbar, .panel, .rail-card, .student-card,
+  .connection-card, .chat-layout, .filters, .connection-illustration, .landing-safety,
+  .icon-button, .pill, .photo-upload-preview > img, .dating-photo-options, dialog) {
+  background: var(--surface);
+}
+[data-theme="dark"] :is(input, select, textarea, .search-input input) {
+  background: var(--surface);
+  border-color: #64526f;
+}
+[data-theme="dark"] :is(input, textarea)::placeholder { color: #b1a3bb; }
+[data-theme="dark"] input[type="checkbox"] { accent-color: var(--primary); }
+[data-theme="dark"] .btn,
+[data-theme="dark"] :is(.badge, .own .bubble, .photo-main-label),
+[data-theme="dark"] #toast,
+[data-theme="dark"] .connection-areas a[aria-current="page"],
+[data-theme="dark"] .interest-option input:checked + span { color: var(--on-primary); }
+[data-theme="dark"] .btn:hover { background: #f7cce8; }
+[data-theme="dark"] .btn.secondary { background: var(--surface); color: var(--primary); border-color: var(--border); }
+[data-theme="dark"] :is(.btn.secondary:hover, .btn.soft) { background: var(--secondary); color: var(--primary); }
+[data-theme="dark"] :is(.btn.danger, .error) { background: #3b202c; color: var(--error); border-color: #774354; }
+[data-theme="dark"] .btn.danger:hover { background: #512b3b; }
+[data-theme="dark"] .notice { background: #281f32; }
+[data-theme="dark"] .tag { background: #30263b; color: #d5c4e2; }
+[data-theme="dark"] :is(.tag.shared, .dating-intention, .dating-emblem, .rail-card .mini-icon) {
+  background: #3c2636;
+  color: #f4bfdc;
+  border-color: #664259;
+}
+[data-theme="dark"] .pill.study { background: #20392e; color: #ace0bf; border-color: #3d6450; }
+[data-theme="dark"] .pill.friend { background: #30263f; color: #d4beed; border-color: #514365; }
+[data-theme="dark"] .pill.dating { background: #3c2636; color: #f3b7d5; border-color: #664259; }
+[data-theme="dark"] .nav a .badge,
+[data-theme="dark"] .connection-areas a .badge { color: var(--on-primary); }
+[data-theme="dark"] .connection-status.offline .dot { background: var(--warning); }
+[data-theme="dark"] .avatar { background: #372a45; color: #e1c9f0; }
+[data-theme="dark"] .avatar.large { border-color: var(--surface); box-shadow: 0 0 0 1px var(--border); }
+[data-theme="dark"] .avatar.tone-1 { background: #472c37; color: #f2bfcd; }
+[data-theme="dark"] .avatar.tone-2 { background: #253e32; color: #b4ddc4; }
+[data-theme="dark"] .avatar.tone-3 { background: #2c334b; color: #c9d1fa; }
+[data-theme="dark"] .avatar.tone-4 { background: #433724; color: #efd6a5; }
+[data-theme="dark"] :is(.welcome-banner, .auth-story, .hero-visual) { background: #2d2238; border-color: var(--border); }
+[data-theme="dark"] .orbit-art span { border-color: #8f719e; }
+[data-theme="dark"] .orbit-art span:nth-child(2) { border-color: #bb7d9f; }
+[data-theme="dark"] :is(.dating-banner, .dating-entry) { background: #30212c; border-color: #634357; }
+[data-theme="dark"] :is(.dating-welcome, .dating-card) { background: var(--surface); border-color: #634357; }
+[data-theme="dark"] .student-card:hover { border-color: #ac86b6; }
+[data-theme="dark"] .reason { color: #c8b1d3; border-color: var(--border); }
+[data-theme="dark"] .empty { background: var(--surface); border-color: #685474; }
+[data-theme="dark"] :is(.empty > svg, .chat-placeholder svg, .connection-illustration svg, .match-celebration > svg) { color: #dab5e2; }
+[data-theme="dark"] .conversation-item { border-color: var(--border); }
+[data-theme="dark"] .conversation-item:hover { background: var(--secondary); }
+[data-theme="dark"] .messages { background: #1a1422; }
+[data-theme="dark"] .bubble { background: #35283f; color: var(--text); }
+[data-theme="dark"] .own .bubble { background: var(--primary); color: var(--on-primary); }
+[data-theme="dark"] .interest-option span { background: var(--surface); }
+[data-theme="dark"] .interest-option input:checked + span { background: var(--primary); }
+[data-theme="dark"] .photo-empty { border-color: #685474; }
+[data-theme="dark"] dialog { box-shadow: 0 25px 100px #0009; }
+[data-theme="dark"] dialog::backdrop { background: #09060eb3; }
+[data-theme="dark"] #toast { box-shadow: 0 8px 30px #0006; }
+
+@media (min-width: 721px) {
+  [data-theme="dark"] .nav a.active { color: var(--on-primary); }
+}
+@media (max-width: 720px) {
+  [data-theme="dark"] .nav a.active svg { background: #3c2c43; }
+  .landing-actions { gap: 8px; }
+}
+@media (max-width: 420px) {
+  .landing-actions .btn svg { display: none; }
+}

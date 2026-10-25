@@ -1,0 +1,24 @@
+# Restricted test deployment. Creating this service incurs Render hosting/storage charges.
+services:
+  - type: web
+    name: campuslink-staging
+    runtime: python
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m campuslink.serve
+    healthCheckPath: /api/health
+    disk:
+      name: campuslink-staging-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: CAMPUSLINK_MODE
+        value: staging
+      - key: CAMPUSLINK_DB
+        value: /var/data/campuslink.sqlite3
+      - key: CAMPUSLINK_STAGING_USERNAME
+        value: campuslink-tester
+      - key: CAMPUSLINK_STAGING_PASSWORD
+        generateValue: true
