@@ -75,3 +75,7 @@
 
 .staging-label { display: inline-flex; width: fit-content; align-items: center; padding: 1px 7px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--muted); font-size: 10px; font-weight: 500; white-space: nowrap; }
 .topbar .context { display: grid; gap: 3px; }
+.operator-checks{list-style:none;padding:0;margin:0}.operator-checks li{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border)}.feedback-item{padding:16px 0;border-bottom:1px solid var(--border)}.feedback-body{white-space:pre-wrap;overflow-wrap:anywhere}
+.feedback-item p,.feedback-item strong{overflow-wrap:anywhere;min-width:0}.feedback-item>.row{flex-wrap:wrap}
+.operator-page .field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.operator-page :is(.panel,.stack,details,form){min-width:0;overflow-wrap:anywhere}.operator-page [data-download-status]{overflow-wrap:anywhere}.operator-page .btn{white-space:normal;text-align:center}
+@media(max-width:720px){.operator-page .field-grid{grid-template-columns:minmax(0,1fr)}}

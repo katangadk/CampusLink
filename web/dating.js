@@ -6,12 +6,13 @@ export function datingWelcome(user, { icon, demoAccounts=true }) {
     <button class="btn" data-action="dating-settings">${icon('heart')}Set up Dating</button>
     <p class="dating-footnote">18+ · Optional · Your profile appears after you opt in.</p>
     <button class="text-button" data-action="dating-guide">How Dating works</button>
-    <small class="muted">${demoAccounts?'Local':'Private'} test build · Profiles and adult declarations are unverified.</small>
+    <small class="muted">${user.verification?.mode==='external'?'Student and 18+ checks are required before Dating.':`${demoAccounts?'Local':'Preview'} test build · Profiles and adult declarations are unverified.`}</small>
   </section>`;
 }
 
 export function datingSettingsForm(user, { icon, esc, check, formError, demoAccounts=true }) {
   if (!user.adult_eligible) {
+    if(user.verification?.mode==='external')return '<div class="stack"><p>Complete the student and 18+ checks before setting up Dating.</p><a class="btn" href="/verification" data-nav>Open verification</a></div>';
     return `<form id="dating-eligibility-form" class="stack">
       ${formError()}<h3>Set up 18+ test access</h3>
       <p>Dating is unavailable until adult eligibility is established. For this ${demoAccounts?'local':'private'} test build, you can declare adult test eligibility on your own fictional account.</p>
@@ -45,7 +46,7 @@ export function datingSettingsForm(user, { icon, esc, check, formError, demoAcco
     </fieldset>
     ${!user.discoverable ? '<p class="notice">Your campus discoverability is off. Other students cannot find or match with you until you enable it in Profile.</p>' : ''}
     <p class="notice">Turning Dating off ends your existing matches and closes their chats. Turning it back on does not restore them.</p>
-    <small class="muted">18+ local test access · Identity and age are unverified.</small>
+    <small class="muted">${user.verification?.mode==='external'?'Student and 18+ eligibility checked.':'18+ local test access · Identity and age are unverified.'}</small>
     <button class="btn" type="submit">Save and explore Dating ${icon('arrow')}</button>
   </form>`;
 }

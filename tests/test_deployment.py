@@ -21,6 +21,7 @@ def staging(monkeypatch, tmp_path):
     for name in ('RENDER','RENDER_EXTERNAL_URL','CAMPUSLINK_STAGING_USERNAME','CAMPUSLINK_STAGING_PASSWORD'):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv('CAMPUSLINK_MODE', 'staging')
+    monkeypatch.setenv('CAMPUSLINK_REQUIRE_APPROVAL', 'false')
     monkeypatch.setenv('CAMPUSLINK_DB', str(tmp_path / 'staging.sqlite3'))
     monkeypatch.setenv('CAMPUSLINK_BASE_URL', ORIGIN)
     return create_app()

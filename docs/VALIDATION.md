@@ -4,6 +4,56 @@
 
 The local discovery → connection → conversation journey passes automated API and real-browser checks. This is evidence for the local build, not a claim of public readiness, production reliability, or successful student acceptance testing.
 
+## Launch preparation and owner approval — 27 October 2026
+
+The final API regression passed **240 tests in 83.88 seconds**, including the
+existing discovery/matching/chat/privacy cases and new operations, mail,
+membership and provider checks. The existing upstream Starlette TestClient
+`httpx` deprecation warning remains; it did not fail the checks. Python
+compilation and syntax checks for all **11 JavaScript modules** passed.
+
+New cases cover trusted staff grant/revocation; auto-approval activation;
+pending-account deletion; authenticated approval and decline/re-approval consent;
+version-5 to version-6 data preservation and future-schema downgrade refusal;
+consistent backup content/restore, low-storage/corruption handling, bounded retention,
+scheduled restore retry, private feedback, operator export/password/CSRF checks;
+TLS SMTP configuration, durable mail retry/restart/key rotation, single-use
+reset/confirmation and account binding; live provider program/account/institution
+checks, student/age identity binding, underage and weak/test evidence rejection,
+malformed results, signed/old/replayed callbacks, bounded expiry and concurrent
+start deduplication. SMTP and provider calls in these tests use synthetic transports.
+
+The complete `tests.staging_browser` TLS journey passed **8 groups** after the
+changes, with two fresh phone-sized sessions: direct entry and normal login,
+full onboarding/photos, cross-program Dating, mutual match, live bidirectional
+messages, draft preservation, one-copy offline retry, crash/session/image/history
+persistence, backup, logout/sign-in and block revocation. No native password
+challenge, overflow, uncaught JavaScript error or CSP error was observed.
+
+`tests.operations_browser` passed **5 groups**: trusted owner setup and approved
+membership, confirmation/reset links through the UI, private escaped feedback and
+triage, explicit decline/cancel/re-approval, and checksum-matching password-confirmed
+backup download plus isolated restore. It uses a disposable TLS server/database
+and file mail transport. The final rerun also exercises fresh student signup and
+all six onboarding steps while approval is pending.
+
+`tests.load_check` exercised **16 fresh accounts, 8 mutual matches and 16 open SSE
+connections**, with 96 saved messages and 96 duplicate retries. **576 measured HTTP
+requests had zero 5xx errors**; cross-conversation/staff access and forged CSRF were
+denied, and sessions/history/read cursors survived a forced restart. This machine's
+observed latency was p50 **80.08 ms**, p95 **271.63 ms**, p99 **872.13 ms**. Those figures
+are for the bounded isolated run, not Render performance or a campus capacity claim.
+
+Results are written to ignored `artifacts/staging-results.json`,
+`operations-results.json` and `load-results.json`. The sign-up wording edit briefly
+introduced a syntax error during a browser rerun; it was corrected and the affected
+journeys rerun successfully before release.
+
+**Not established by these checks:** actual Render rollout/configuration, real
+mailbox receipt, live provider/Zambian university support, legal review, actual
+offsite recovery, physical Android keyboard/network behavior or student acceptance.
+These remain open in [CHECKLIST.md](../CHECKLIST.md) and [OPERATIONS.md](OPERATIONS.md).
+
 ## Direct website access — 27 October 2026
 
 At the user's request, the hosted preview no longer has a shared tester gate.

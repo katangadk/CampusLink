@@ -229,5 +229,5 @@ def test_legacy_database_gains_photo_table_without_losing_accounts(app):
     sql(app,'PRAGMA user_version=1')
     create_app(app.state.db_path,testing=True)
     assert sql(app,'SELECT id,username FROM users ORDER BY id')==before
-    assert sql(app,'PRAGMA user_version')[0][0]==5
+    assert sql(app,'PRAGMA user_version')[0][0]==6
     assert sql(app,'SELECT id FROM profile_photos')==[]

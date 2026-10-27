@@ -238,4 +238,4 @@ def test_version_three_upgrade_preserves_photos_prompts_users_and_sessions(stude
     assert client.get(photo).status_code == 200
     assert user['dating_intention'] == '' and user['show_dating_intention'] is False
     assert sql(app, 'SELECT id,username FROM users ORDER BY id') == accounts
-    assert sql(app, 'PRAGMA user_version')[0][0] == 5
+    assert sql(app, 'PRAGMA user_version')[0][0] == 6

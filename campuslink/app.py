@@ -11,7 +11,7 @@ import secrets
 import sqlite3
 import time
 import uuid
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response, StreamingRes
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from .security import LocalEligibility, USERNAME, age, check_password, password_hash, token_hash
+from .security import USERNAME, age, check_password, password_hash, token_hash
 from .recovery import SMTPRecovery
 from .photos import MAX_PHOTOS, MAX_UPLOAD_BYTES, PhotoError, process_photo
 from .prompts import PROMPTS, QUESTIONS, MAX_PROMPTS, MAX_ANSWER, validate_answers
@@ -27,6 +27,16 @@ from .intentions import INTENTIONS, INTENTION_LABELS
 from .starters import conversation_starters
 from .social import install_social
 from .deployment import Deployment, StagingAccess
+from .monitoring import Metrics, RequestMetrics
+from .operations import Operations, OperationSettings, env_number
+from .operator import install_operator
+from .service import ServiceSettings
+from .mail import MailOutbox
+from .eligibility import AccountEligibility
+from .verification import install_verification
+from .membership import install_membership
+from .provider import SheerID
+from .provider_verification import install_provider
 
 ROOT = Path(__file__).resolve().parent.parent
 INTERESTS = ['Technology', 'Cybersecurity', 'Programming', 'Gaming', 'Music', 'Sports',
@@ -35,13 +45,28 @@ DAY = 86400
 WEIGHTS = {'interest': 3, 'program': 4, 'goal': 2, 'subject': 5, 'skill': 3, 'study_goal': 3}
 
 
-def create_app(db_path: str | Path | None = None, *, testing=False, recovery_delivery=None):
+def create_app(db_path: str | Path | None = None, *, testing=False, recovery_delivery=None,verification_provider=None):
     deployment = Deployment.load(ROOT,db_path)
-    app = FastAPI(title='CampusLink', docs_url='/api/docs' if testing else None, redoc_url=None)
+    service = ServiceSettings.load()
+    operation_settings = OperationSettings.load(deployment)
+    registrations_per_hour=env_number('CAMPUSLINK_REGISTRATIONS_PER_HOUR',60,10,500)
+    @asynccontextmanager
+    async def lifespan(app):
+        stop = asyncio.Event()
+        task = asyncio.create_task(app.state.operations.run(stop)) if deployment.mode=='staging' or operation_settings.enabled else None
+        try:
+            yield
+        finally:
+            stop.set()
+            if task:
+                await task
+    app = FastAPI(title='CampusLink', docs_url='/api/docs' if testing else None, redoc_url=None, lifespan=lifespan)
     app.state.db_path = str(deployment.database)
     app.state.mode = deployment.mode
     app.state.testing = testing
-    eligibility = LocalEligibility()
+    metrics = Metrics()
+    provider=app.state.provider=verification_provider or SheerID()
+    eligibility = AccountEligibility(app.state.db_path,service,hosted=deployment.mode=='staging')
     recovery_delivery = recovery_delivery or SMTPRecovery(base_url=deployment.origin or None)
     recovery_available = bool(getattr(recovery_delivery,'configured',testing))
     Path(app.state.db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -67,9 +92,15 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
 
     with db() as con:
         con.execute('PRAGMA journal_mode=WAL')
+        if con.execute('PRAGMA user_version').fetchone()[0]>6:
+            raise RuntimeError('This database needs a newer CampusLink version; automatic downgrade is refused.')
         con.executescript((ROOT / 'campuslink' / 'schema.sql').read_text())
         deployment.reject_fixture_database(con)
         con.executemany('INSERT OR IGNORE INTO interests(name) VALUES (?)', [(i,) for i in INTERESTS])
+    mailbox = app.state.mailbox = MailOutbox(app.state.db_path,recovery_delivery,
+        base_url=deployment.origin or os.getenv('CAMPUSLINK_BASE_URL',''))
+    recovery_available = mailbox.configured or bool(testing and recovery_delivery and not isinstance(recovery_delivery,SMTPRecovery))
+    operations = app.state.operations = Operations(app.state.db_path,operation_settings,mailbox)
 
     def fail(message, status=400):
         raise HTTPException(status, message)
@@ -128,6 +159,14 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
             supplied = request.headers.get('x-csrf-token', '')
             if not secrets.compare_digest(supplied, session['csrf']):
                 fail('Your session changed. Refresh and try again.', 403)
+        membership_pending=eligibility.requires_approval and not eligibility.approved(con,user)
+        student_pending=eligibility.mode=='external' and not eligibility.details(con,user)['student_verified']
+        if membership_pending or student_pending:
+            route=request.url.path
+            own_account=(route=='/api/me' or route.startswith(('/api/me/','/api/auth/','/api/security/','/api/account/',
+                '/api/verification','/api/operator/','/api/moderation/','/api/feedback','/api/reports/mine','/api/blocks','/api/photos/')))
+            if not own_account:
+                fail('Your campus membership is awaiting operator approval.' if membership_pending else 'Complete your student verification before using campus discovery and conversations.',403)
         return user, session
 
     def emit(con, *ids):
@@ -152,7 +191,7 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
         prompts = [{'prompt_id':r['prompt_id'], 'question':QUESTIONS[r['prompt_id']], 'answer':r['answer']}
                    for r in con.execute('SELECT prompt_id,answer FROM profile_prompts WHERE user_id=? ORDER BY position',(user['id'],))]
         result = {**{k: user[k] for k in ('id','username','display_name','bio','institution_id','program','year','subjects','skills','study_goals')},
-                'interests': interests(con, user['id']), 'local_test': bool(user['local_test']), 'verified': False,
+                'interests': interests(con, user['id']), 'local_test': bool(user['local_test']), 'verified': eligibility.mode=='external' and eligibility.student(user),
                 'photos':photos,'main_photo_url':photos[0]['url'] if photos else None,'prompts':prompts}
         viewer_id = viewer['id'] if viewer is not None else user['id']
         result['like_count'] = con.execute('SELECT count(*) FROM profile_likes l JOIN users u ON u.id=l.sender WHERE l.target=? AND u.status="active" AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.blocker=? AND b.blocked=l.sender) OR (b.blocked=? AND b.blocker=l.sender))', (user['id'],viewer_id,viewer_id)).fetchone()[0]
@@ -171,7 +210,9 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
                 'dating_genders': json.loads(user['dating_genders']), 'adult_eligible': eligibility.adult(user),
                 'csrf': session['csrf'] if session else None,
                 'dating_intention':intention['intention'] if intention else '',
-                'show_dating_intention':bool(intention and intention['displayed'])}
+                'show_dating_intention':bool(intention and intention['displayed']),
+                'operator':bool(con.execute('SELECT 1 FROM operator_roles WHERE user_id=?',(user['id'],)).fetchone()),
+                'verification':eligibility.details(con,user)}
 
     def get_user(con, uid):
         user = con.execute('SELECT * FROM users WHERE id=? AND status="active"', (uid,)).fetchone()
@@ -273,6 +314,8 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
                 try:
                     with db() as con:
                         user,_=auth(con,request)
+                        if eligibility.requires_approval and not eligibility.approved(con,user):
+                            fail('Campus membership approval is required before uploading photos.',403)
                         limit(con,'photo-upload:'+user['id'],20)
                 except HTTPException as exc:
                     return JSONResponse({'detail':exc.detail},exc.status_code)
@@ -324,14 +367,16 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
 
     @app.get('/api/catalog')
     def catalog():
-        return {'interests':INTERESTS,'institutions':[{'id':'zut','name':'Zambia University College of Technology'}], 'mode':deployment.mode,'demo_accounts_available':deployment.mode=='local','recovery_available':recovery_available,
+        return {'interests':INTERESTS,'institutions':[{'id':'zut','name':'Zambia University College of Technology'}], 'mode':deployment.mode,'demo_accounts_available':deployment.mode=='local','recovery_available':recovery_available,'service':service.public(),
+                'eligibility_mode':eligibility.mode,'approval_required':eligibility.requires_approval,'email_verification_available':mailbox.configured,
+                'verification_provider':{'name':provider.name,'configured':provider.configured},
                 'prompts':PROMPTS,'prompt_limits':{'count':MAX_PROMPTS,'answer':MAX_ANSWER},'dating_intentions':INTENTIONS}
 
     @app.post('/api/auth/register')
     async def register(request: Request):
         data = await payload(request)
         with db() as con:
-            limit(con,'register:'+request.client.host,10,3600)
+            limit(con,'register:'+request.client.host,registrations_per_hour,3600)
         email = text(data,'email',254,5).lower()
         username = text(data,'username',24,3).lower()
         password = text(data,'password',128,12)
@@ -347,7 +392,8 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
                 fail('That username is already taken.',409)
             if con.execute('SELECT 1 FROM users WHERE email=?',(email,)).fetchone():
                 fail('An account already uses this email. Try signing in.',409)
-            con.execute('INSERT INTO users(id,email,username,display_name,password_hash,local_test,created_at) VALUES (?,?,?,?,?,1,?)', (uid,email,username,display,hashed,now()))
+            con.execute('INSERT INTO users(id,email,username,display_name,password_hash,local_test,created_at) VALUES (?,?,?,?,?,?,?)',
+                        (uid,email,username,display,hashed,int(eligibility.mode=='preview'),now()))
             return start_session(con,get_user(con,uid),request)
 
     dummy_hash = password_hash('dummy-constant-for-timing')
@@ -504,13 +550,15 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
     async def local_adult_test_access(request: Request):
         """Explicit self-declared adult test access; never verifies age/identity.
 
-        This is available locally and inside the restricted staging gate only.
+        This is available only in the local or hosted preview eligibility mode.
         Public modes remain disabled; this declaration never verifies a student.
         This declaration does not activate Dating; that requires separate opt-in.
         """
         data=await payload(request)
         with db() as con:
             user,_=auth(con,request)
+            if eligibility.mode!='preview':
+                fail('Dating eligibility requires the external verification flow.',403)
             limit(con,'adult-test:'+user['id'],10,3600)
         if data.get('adult_test_agreement') is not True:
             fail('Confirm this is self-declared 18+ access for local testing.',422)
@@ -539,11 +587,18 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
         if not recovery_available:
             fail('Password recovery is unavailable until an email provider is configured.',503)
         token=secrets.token_urlsafe(32)
+        queued=False
         with db(True) as con:
             user=con.execute('SELECT id,email FROM users WHERE email=? AND status="active"',(email,)).fetchone()
             if user:
-                con.execute('DELETE FROM recovery_tokens WHERE user_id=? OR expires_at<?',(user['id'],now()))
-                con.execute('INSERT INTO recovery_tokens VALUES (?,?,?)',(token_hash(token),user['id'],now()+1800))
+                if mailbox.configured:
+                    mailbox.enqueue(con,user,'recovery')
+                    queued=True
+                else:
+                    # Test transports preserve the existing in-process harness;
+                    # real configured delivery always uses the durable queue.
+                    con.execute('DELETE FROM recovery_tokens WHERE user_id=? OR expires_at<?',(user['id'],now()))
+                    con.execute('INSERT INTO recovery_tokens VALUES (?,?,?)',(token_hash(token),user['id'],now()+1800))
         def deliver(email,token):
             try:
                 # Transport errors never reveal account existence in the response.
@@ -551,7 +606,7 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
             except Exception:
                 logging.getLogger('campuslink').error('Recovery delivery failed; check email provider configuration.')
         return JSONResponse({'message':'If an active account uses this email, a reset link will arrive shortly.'},
-                            background=BackgroundTask(deliver,user['email'],token) if user else None)
+                            background=BackgroundTask(mailbox.process) if queued else (BackgroundTask(deliver,user['email'],token) if user else None))
 
     @app.post('/api/auth/reset-password')
     async def reset_password(request: Request):
@@ -567,6 +622,7 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
             con.execute('UPDATE users SET password_hash=? WHERE id=?',(hashed,recovery['user_id']))
             con.execute('DELETE FROM sessions WHERE user_id=?',(recovery['user_id'],))
             con.execute('DELETE FROM recovery_tokens WHERE user_id=?',(recovery['user_id'],))
+            mailbox.consumed(con,recovery['user_id'],'recovery')
             notify(con,recovery['user_id'],'Your password was reset. All sessions were signed out.')
         return {'ok':True}
 
@@ -966,6 +1022,14 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
                     if not valid:
                         yield 'event: expired\ndata: {}\n\n'
                         return
+                    if eligibility.requires_approval and not con.execute('SELECT 1 FROM membership_approvals WHERE user_id=? AND status="approved"',(uid,)).fetchone():
+                        yield 'event: membership\ndata: {}\n\n'
+                        return
+                    if eligibility.mode=='external':
+                        current_user=con.execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone()
+                        if not eligibility.details(con,current_user)['student_verified']:
+                            yield 'event: membership\ndata: {}\n\n'
+                            return
                     latest = con.execute('SELECT COALESCE(MAX(id),0) FROM events WHERE user_id=?',(uid,)).fetchone()[0]
                 if latest>cursor:
                     cursor = latest
@@ -1136,9 +1200,16 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
             return response
 
     install_social(app,db=db,auth=auth,payload=payload,text=text,number=number,fail=fail,now=now,limit=limit,emit=emit,notify=notify,public=public,get_user=get_user,blocked=blocked,campus_access=campus_access,pair=pair,authorized_relation=authorized_relation,dating_compatible=dating_compatible,like_dating=like_dating)
+    install_operator(app,db=db,auth=auth,payload=payload,text=text,fail=fail,limit=limit,now=now,
+                     operations=operations,metrics=metrics,service=service,recovery=mailbox,provider=provider,eligibility=eligibility)
+    install_verification(app,db=db,auth=auth,payload=payload,text=text,fail=fail,limit=limit,now=now,
+                         emit=emit,mailbox=mailbox,eligibility=eligibility)
+    install_membership(app,db=db,auth=auth,payload=payload,fail=fail,now=now,emit=emit,eligibility=eligibility)
+    install_provider(app,db=db,auth=auth,payload=payload,fail=fail,limit=limit,now=now,emit=emit,eligibility=eligibility,provider=provider)
 
     if deployment.mode=='staging':
         app.add_middleware(StagingAccess,deployment=deployment)
+    app.add_middleware(RequestMetrics,metrics=metrics)
 
     app.mount('/assets',StaticFiles(directory=ROOT/'web'),name='assets')
 

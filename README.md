@@ -2,11 +2,11 @@
 
 Campus dating, discovery and conversations.
 
-Follow the [development checklist](CHECKLIST.md) for completed work, the next features in order, and deferred launch tasks. **Stages 1–5 are implemented. Stage 6's combined fresh-account journey passes automated checks; acceptance on two physical phones is still pending.**
+Follow the [development checklist](CHECKLIST.md) for completed work, the next features in order, and remaining launch tasks. **Stages 1–5 are implemented. Stage 6's combined fresh-account journey passes automated checks; acceptance on two physical phones is still pending.**
 
 A working local campus dating and student-discovery application with a FastAPI backend, a persistent SQLite database, and a responsive browser interface. The main path is **discover → public Like → mutual match → chat**, with private comment requests as another way to connect. Feed supports text/photo posts and public reactions. Comments stay private; a recipient must accept a request before a new conversation opens. Music is excluded. Friendship and study connections remain available.
 
-**Status: local functional MVP, built and tested.** Real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred at your request. Local use remains supported. A hosted preview service is deployed at [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com); hosted acceptance remains open. This implementation follows the supplied brief through section 14.4, where the pasted document ends mid-sentence. Full profiles and test-account setup identify fictional accounts as **Local test · Unverified**. CampusLink is independent of ZUT.
+**Status: local functional MVP, built and tested.** The owner has authorized launch preparation. Membership approval, queued email recovery/confirmation, backups/restore checks, operator monitoring and an optional external verification adapter are implemented. Actual hosted setup, email receipt, live verification, privacy review and student acceptance remain open. Local use remains supported. A hosted preview service is deployed at [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com); hosted acceptance remains open. This implementation follows the supplied brief through section 14.4, where the pasted document ends mid-sentence. Full profiles and test-account setup identify fictional accounts as **Local test · Unverified**. CampusLink is independent of ZUT.
 
 ## Run locally
 
@@ -48,11 +48,32 @@ Other fixtures: `chipo`, `david`, `esther`, `farai`, and `grace` at `campuslink.
 
 ## Hosted preview deployment
 
-Open [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com). The current source removes the shared tester password: visitors open the website directly, then create or sign in to their own accounts. Deploy the latest update to apply this behavior to the live service.
+Open [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com). Visitors open the website directly, then create or sign in to their own accounts. The launch-work update must be deployed separately to enable its new operator tools.
 
 Follow [DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Render Blueprint, persistent disk, HTTPS/proxy settings, normal account login, backup/restore and hosted checks. Old tester username/password environment variables are ignored; no shared access credentials are required.
 
 `staging` keeps a canonical HTTPS origin, separate persistent database, Secure/HttpOnly account cookies, CSRF and private-data permissions. Online demo seeding and copied demo databases are refused. Production eligibility and hosted/student acceptance remain separate from direct preview access.
+
+## Owner approvals and launch setup
+
+You approve membership in **Profile → Operator console**. After deploying this
+update, first create your individual account, then grant that existing account
+operator access from Render's trusted service shell:
+
+```sh
+python -m campuslink.admin grant operator kabundakatanga91@gmail.com
+```
+
+Use your registered username/email if different. The support email does not
+automatically grant privileges. Hosted approval enforcement activates with the
+first operator grant; pending accounts can edit their profile and contact you,
+then use discovery/chat after approval. Approve your own membership too.
+Membership approval, mailbox confirmation and verified age are separate.
+
+Follow [OPERATIONS.md](docs/OPERATIONS.md) for private SMTP configuration,
+backup downloads/restore, monitoring, optional live verification and support
+procedures. No provider account or paid service is created automatically.
+The [pilot plan](docs/PILOT.md) records the real student work still needed.
 
 ## Light and dark themes
 
@@ -91,7 +112,7 @@ Dating is the first view in Discover. You can also open `/dating` directly.
 3. Browse adult test profiles, **Like**, **Comment** or **Inbox**. Likes and liker identities are public; Comment is private. **Pass** is inside the profile’s options menu. Open **Matches** (or the **My matches** shortcut) for mutual dating connections and **Preferences** to update or disable Dating.
 4. To test a real mutual match, use Alice in one browser and your created adult test account (or Brian) in another browser or private tab. Activate Dating on both with reciprocal preferences, then like each other. A genuine mutual match opens a **Say hello** action and a conversation under Inbox → Dating.
 
-Created accounts can use self-declared adult access **only in this local test build**. This does not verify age, identity, or student status. A legitimate eligibility provider remains deferred. The setup also offers **Use a fictional adult test account instead**, which explicitly switches this browser to Alice or Brian without changing the original account.
+Created accounts can use self-declared adult access **only in this local test build**. This does not verify age, identity, or student status. An optional external provider adapter is prepared, but no live provider account or university coverage has been confirmed. The setup also offers **Use a fictional adult test account instead**, which explicitly switches this browser to Alice or Brian without changing the original account.
 
 The seed includes explicitly opted-in fictional profiles `demo_daniel`, `demo_naomi`, and `demo_musa` so initial Dating discovery has people to browse. Their emails use `@campuslink.test` with the shared fixture password. They do not send automatic likes, messages, or notifications. Re-running the seed does not enable Dating on existing accounts. To add just these fixtures to an existing local database:
 
@@ -192,6 +213,6 @@ Recovery responds identically for known and unknown emails. Delivery runs after 
 
 ## Deferred public launch work
 
-The following work is outside the current local MVP scope: real student/adult verification, email delivery setup, privacy and operational review, and testing with actual students. These requirements are deferred rather than implemented and do not block running or developing the local MVP.
+Launch preparation is now authorized. Supporting approval, mail, verification and operations code is implemented; real provider coverage, SMTP receipt, privacy review, hosted recovery and student/device acceptance still require actual setup and observation. See the [operator runbook](docs/OPERATIONS.md).
 
-`CAMPUSLINK_MODE` supports `local` and hosted-preview `staging`. Public/production values still refuse startup. The deferred work and deployment checks are tracked in [implementation status](docs/STATUS.md) for a future public launch.
+`CAMPUSLINK_MODE` supports `local` and hosted-preview `staging`. Public/production values still refuse startup. The remaining acceptance work and deployment checks are tracked in [implementation status](docs/STATUS.md) for a future public launch.

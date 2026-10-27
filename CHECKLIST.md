@@ -8,7 +8,7 @@ Created: 22 October 2026. Keep this file updated as we work through each phase.
 
 **Phases 1–3 completed: 22 October 2026. Phases 4–5 completed: 23 October 2026. Phase 6 automated journey checks passed on 23 October; acceptance on two physical phones remains open.**
 
-An item is complete when its interface and backend work together, its data persists where needed, and the relevant checks pass. Screenshots alone do not establish completion. Update [validation evidence](docs/VALIDATION.md) after functional changes. Deferred launch work stays outside the current local development scope.
+An item is complete when its interface and backend work together, its data persists where needed, and the relevant checks pass. Screenshots alone do not establish completion. Update [validation evidence](docs/VALIDATION.md) after functional changes. On 27 October the owner authorized the remaining launch work; its current evidence and external dependencies are recorded below.
 
 ## 0. Agreed direction and existing foundation
 
@@ -164,15 +164,24 @@ The combined run uses two freshly registered accounts, an initially empty tempor
 - [ ] Consider simple campus date activity ideas after the main journey is complete.
 - [ ] Reassess additional features against whether they help students discover, match, or converse.
 
-## Deferred launch work — outside the current scope
+## Launch work — authorized 27 October 2026
 
-These remain unchecked and deferred as agreed. They do not block the local feature phases above.
+Owner decision: the owner approves account emails/membership. There is no verification-provider account yet. Membership approval does not establish email ownership or checked 18+ status. Support contact: kabundakatanga91@gmail.com.
 
-- [ ] Establish legitimate student and adult verification.
-- [ ] Configure and verify real recovery email delivery.
-- [ ] Complete privacy/legal review and operational moderation/support procedures.
-- [ ] Establish retention, backup/restore, monitoring, and deployment/security/load checks.
-- [ ] Complete hosted acceptance: the direct-access preview is deployed, but the real-device journey, hosted persistence and restore checks remain open.
-- [ ] Conduct consenting student usability trials and resolve the findings before public launch.
+- [x] Add a trusted-console operator grant, audited membership queue and pending-account screen. Auto approval enforcement activates with the first operator grant; no shared website password returns.
+- [x] Enforce approval on discovery, connections, photos/uploads and live chat; keep own security/support/account deletion available. Decline ends connections; re-approval requires fresh connection consent.
+- [x] Add email ownership confirmation and durable TLS SMTP recovery jobs with expiry, single-use tokens, bounded retries and restart recovery.
+- [x] Prepare the optional external student/18+ provider adapter; enforce live canonical results, account/institution/identity binding and signed webhooks. Test responses are rejected.
+- [x] Add scheduled consistent backups, bounded retention, content/integrity checks, isolated restore checks and password-confirmed operator downloads.
+- [x] Add expired-record cleanup, request IDs, operator service metrics and private pilot feedback/triage.
+- [x] Document support/moderation procedures, SMTP/provider setup, offsite recovery, privacy review and a consenting-student pilot.
+- [x] Pass the owner approval/email/feedback/backup browser journey and the 16-account, 8-match messaging exercise. These use isolated QA services, not actual Render or physical phones.
+- [ ] Deploy this launch-work update to the actual Render service and grant the owner's existing account operator access using the trusted server shell.
+- [ ] Configure SMTP privately and confirm confirmation/reset messages arrive in an actual mailbox.
+- [ ] Confirm a live provider supports the actual Zambian university and both student/18+ evidence checks; configure credentials/consent and validate real outcomes before using external eligibility.
+- [ ] Supply the legal operator identity, complete privacy/legal review and approve reports/audit/external-backup retention and appeals procedures.
+- [ ] Download and protect an actual offsite backup, rehearse hosted recovery, and configure external operational alerts.
+- [ ] Finish the hosted discovery → match → chat journey on both Android phones, including keyboard, mobile data, receipts, offline retry and background/resume.
+- [ ] Conduct the consenting adult student pilot, resolve observed issues and retest before expanding access.
 
-Detailed limitations remain in [implementation status](docs/STATUS.md).
+The application remains a preview. Supporting code and automated tests do not complete the unchecked real-world acceptance items. See [operator runbook](docs/OPERATIONS.md), [pilot plan](docs/PILOT.md) and [implementation status](docs/STATUS.md).

@@ -152,4 +152,84 @@ CREATE TABLE IF NOT EXISTS message_requests (
  client_id TEXT NOT NULL, created_at INTEGER NOT NULL,
  UNIQUE(sender,target), CHECK(sender != target)
 );
-PRAGMA user_version = 5;
+CREATE TABLE IF NOT EXISTS operator_roles (
+ user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ granted_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS operator_audit (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+ target_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+ action TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS operation_runs (
+ operation TEXT PRIMARY KEY, status TEXT NOT NULL,
+ started_at INTEGER NOT NULL, completed_at INTEGER,
+ summary TEXT NOT NULL DEFAULT '{}'
+);
+CREATE TABLE IF NOT EXISTS pilot_feedback (
+ id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+ category TEXT NOT NULL CHECK(category IN ('bug','usability','suggestion')),
+ body TEXT NOT NULL CHECK(length(body) BETWEEN 10 AND 2000),
+ status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','triaged','resolved')),
+ created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS events_created ON events(created_at);
+CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+ token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ email_hash TEXT NOT NULL, expires_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS account_verification (
+ user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ email_hash TEXT NOT NULL, email_verified_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS eligibility_checks (
+ user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ kind TEXT NOT NULL CHECK(kind IN ('student','adult')),
+ status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+ reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+ method TEXT NOT NULL DEFAULT '', reference_hash TEXT NOT NULL DEFAULT '',
+ expires_at INTEGER, updated_at INTEGER NOT NULL,
+ PRIMARY KEY(user_id,kind)
+);
+CREATE TABLE IF NOT EXISTS mail_outbox (
+ id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ purpose TEXT NOT NULL CHECK(purpose IN ('recovery','verify_email')),
+ email_hash TEXT NOT NULL, key_id TEXT NOT NULL,
+ created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+ status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','sending','sent','used','cancelled','failed')),
+ attempts INTEGER NOT NULL DEFAULT 0, next_attempt INTEGER NOT NULL,
+ lease_until INTEGER NOT NULL DEFAULT 0, sent_at INTEGER,
+ last_error TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS mail_outbox_due ON mail_outbox(status,next_attempt,lease_until);
+CREATE TABLE IF NOT EXISTS membership_approvals (
+ user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+ reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+ reason TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS service_state (
+ key TEXT PRIMARY KEY, value TEXT NOT NULL
+);
+INSERT OR IGNORE INTO service_state(key,value) SELECT 'membership_approval_activated','1' WHERE EXISTS(SELECT 1 FROM operator_roles);
+INSERT OR IGNORE INTO membership_approvals(user_id,updated_at) SELECT id,created_at FROM users;
+CREATE TRIGGER IF NOT EXISTS new_account_membership AFTER INSERT ON users
+BEGIN
+ INSERT OR IGNORE INTO membership_approvals(user_id,updated_at) VALUES (NEW.id,NEW.created_at);
+END;
+CREATE TABLE IF NOT EXISTS provider_attempts (
+ id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ kind TEXT NOT NULL CHECK(kind IN ('student','adult')),
+ program_id TEXT NOT NULL, provider_id TEXT UNIQUE,
+ status TEXT NOT NULL CHECK(status IN ('creating','pending','approved','rejected','failed')),
+ email_hash TEXT NOT NULL, identity_hash TEXT NOT NULL DEFAULT '',
+ live_started INTEGER NOT NULL DEFAULT 0,
+ consent_version TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS provider_attempts_owner ON provider_attempts(user_id,kind,created_at);
+CREATE TABLE IF NOT EXISTS provider_events (
+ body_sha256 TEXT PRIMARY KEY, received_at INTEGER NOT NULL
+);
+PRAGMA user_version = 6;

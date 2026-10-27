@@ -280,4 +280,4 @@ def test_version_four_upgrade_preserves_private_data(students, app):
     assert client.get('/api/chats/' + rid + '/messages').json()['items'][0]['body'] == 'Keep this'
     assert not sql(app, 'SELECT * FROM profile_likes')
     assert len(sql(app, 'SELECT * FROM dating_likes')) == 1
-    assert sql(app, 'PRAGMA user_version')[0][0] == 5
+    assert sql(app, 'PRAGMA user_version')[0][0] == 6

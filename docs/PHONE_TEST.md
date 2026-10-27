@@ -30,6 +30,24 @@ Open <https://campuslink-staging.onrender.com> after deploying the direct-access
 
 Create fictional test accounts; supplied Alice/Brian/moderator fixtures are not available online. Test on mobile data as well as Wi-Fi. Record the deployed commit, direct page access, account login, keyboard, background/resume and persistence after redeployment. See [DEPLOYMENT.md](DEPLOYMENT.md). Physical hosted acceptance remains pending; temporary TLS Chromium tests cannot close it.
 
+## Approval and launch-work checks
+
+After the latest update is deployed and the owner role is granted, new and existing
+pending accounts wait for owner membership approval. On the owner's separate session,
+open **Profile → Operator console**, approve both test accounts, then tap **Check
+approval status** on each phone. Pending accounts may finish profile text first;
+photo uploads become available after approval. Approval must not claim verified age.
+
+Use controlled mailboxes for confirmation/reset checks once SMTP is configured;
+fictional `@campuslink.test` addresses cannot receive real mail. Record actual receipt,
+expiry/reuse behavior and whether reset signs out the old session. External checks
+remain unavailable until a real provider arrangement is configured. Follow the preview
+adult declaration only for fictional testing; it is not proof of student or age status.
+
+Record the exact deployed commit, both Android models/browser versions and whether
+both Wi-Fi and mobile-data journeys pass. The historical LAN page-load result does
+not establish this release's hosted acceptance.
+
 ## Prepare two independent profiles
 
 On each phone, create a different test account. For example, use usernames

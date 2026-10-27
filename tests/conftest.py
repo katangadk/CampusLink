@@ -7,6 +7,19 @@ from campuslink.app import create_app
 from campuslink.seed import PASSWORD, seed
 
 
+@pytest.fixture(autouse=True)
+def isolated_service_configuration(monkeypatch):
+    # Tests must never use the operator's actual mail/provider credentials.
+    for name in list(__import__('os').environ):
+        if name.startswith(('CAMPUSLINK_SMTP_','CAMPUSLINK_SHEERID_')):
+            monkeypatch.delenv(name,raising=False)
+    monkeypatch.delenv('CAMPUSLINK_MAIL_TOKEN_SECRET',raising=False)
+    monkeypatch.setenv('CAMPUSLINK_MODE','local')
+    monkeypatch.setenv('CAMPUSLINK_ELIGIBILITY_MODE','preview')
+    monkeypatch.setenv('CAMPUSLINK_REQUIRE_APPROVAL','false')
+    monkeypatch.setenv('CAMPUSLINK_VERIFICATION_LIVE','false')
+
+
 class Student:
     def __init__(self, app, name):
         self.client = TestClient(app)

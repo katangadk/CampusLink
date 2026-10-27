@@ -147,7 +147,7 @@ def test_upgrade_from_version_two_preserves_accounts_photos_and_sessions(student
     sql(app, 'DROP TABLE profile_prompts')
     sql(app, 'PRAGMA user_version=2')
     upgraded = create_app(app.state.db_path, testing=True)
-    assert sql(app, 'PRAGMA user_version')[0][0] == 5
+    assert sql(app, 'PRAGMA user_version')[0][0] == 6
     assert sql(app, 'SELECT id,username FROM users ORDER BY id') == before
     client = TestClient(upgraded)
     client.cookies.update(a.client.cookies)

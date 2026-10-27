@@ -18,3 +18,11 @@ services:
         value: staging
       - key: CAMPUSLINK_DB
         value: /var/data/campuslink.sqlite3
+      - key: CAMPUSLINK_SUPPORT_EMAIL
+        value: kabundakatanga91@gmail.com
+      - key: CAMPUSLINK_MAIL_TOKEN_SECRET
+        generateValue: true
+      - key: CAMPUSLINK_BACKUPS_ENABLED
+        value: "true"
+      - key: CAMPUSLINK_BACKUP_KEEP
+        value: "3"

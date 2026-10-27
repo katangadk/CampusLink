@@ -4,7 +4,7 @@ Use the [development checklist](../CHECKLIST.md) to track the next feature phase
 
 This is a local functional MVP, not a finished public product. Visual quality is not the acceptance criterion. The test target is students discovering, connecting, and chatting with real persisted state and server-side permissions.
 
-**Current scope:** local MVP use, development and hosted preview testing. At the user's request, real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred. They are not prerequisites for the current local scope. Existing automated functional checks remain the acceptance evidence.
+**Current scope:** local development and hosted preview. On 27 October the owner authorized launch preparation and confirmed that membership/email approval belongs to them. The supporting operations and verification code is implemented; actual hosted configuration, provider coverage, mailbox receipt, privacy review, physical Android acceptance and a consenting-student pilot remain incomplete. Earlier deferred-scope statements below are historical.
 
 | Area | Local implementation |
 | --- | --- |
@@ -72,15 +72,52 @@ The Stage 6 combined journey passed all nine groups on 23 October 2026, starting
 
 `tests/navigation_browser.py` checks five primary destinations, dating defaults, secondary friendship/study routes, request badges, Back/Forward, keyboard tabs and route/dialog focus, photo/prompt/visibility editing through shortcuts, real private likes and mutual dating chat, independent request failures, cached-list warnings, retry/reconnect with a retained message draft, initial loading feedback, selected text contrast, mobile touch targets and layout.
 
-## Remaining work and deferred launch requirements
+## Launch preparation — 27 October 2026
 
-- **Legitimate student and adult verification:** deferred. Dating can be tested with fictional adult fixtures or an explicit 18+ declaration on a created local test account. That declaration is not age verification; no verified status is claimed. Public mode intentionally fails startup.
-- **Real recovery delivery:** SMTP configuration and an actual delivery exercise remain required. The test transport proves token behavior, not delivery to a mailbox. A durable queue and monitoring are not included.
-- **Photo formats:** optional JPEG, PNG, and still WebP galleries are implemented. HEIC, animated images, cropping controls, and image attachments in messages are not included in this phase. Initials remain the fallback.
-- **Production safety operations:** no staffed support contact, appeals/reactivation UI, retention schedule, scheduled transient-record pruning, or operational moderation team is claimed. Local moderator fixtures demonstrate role enforcement only.
-- **Legal and privacy review:** draft policies need an operator identity/contact, approved retention and deletion treatment, and review of applicable Zambian requirements before deployment. No legal compliance determination has been made.
-- **Deployment and scale:** no public/student deployment, load/soak testing, external security review or production observability is complete. Restricted staging proxy/storage configuration and a backup helper are prepared and locally tested; the preview is deployed, while hosted acceptance and an operator restore exercise remain pending. Cohort ranking currently runs in memory. One-to-one text messaging is the supported local scope.
-- **Student acceptance:** actual student usability testing and product hypothesis validation have not happened. Desktop Chromium and a mobile-sized viewport do not establish cross-browser, assistive-technology, device, or campus-network reliability.
-- **Specification continuation:** the attached brief ends during section 14.4. Any omitted continuation has not been assumed implemented.
+Schema 6 adds trusted operator roles/audits, membership approval, email confirmation,
+durable mail jobs, external eligibility records, maintenance history and private pilot
+feedback. Hosted approval defaults to `auto`: the first trusted operator grant activates
+enforcement permanently unless the operator explicitly changes configuration. Local
+preview keeps approval off by default. Pending/declined members retain their own
+profile/security/support/deletion access but cannot discover or chat. Approval never
+silently confirms email, age or external student status.
 
-These gaps are not presented as working features. Public readiness requires closing the applicable gates and validating the full journey with consenting students.
+Email uses certificate-verified SMTP TLS and durable, purpose-bound, single-use links.
+A separate server secret reconstructs tokens without storing plaintext links in SQLite.
+Retries survive restarts; test transport acceptance is distinct from actual mailbox
+receipt. Live SMTP is not configured by the support email alone.
+
+The optional SheerID adapter separates student and 18+ checks, binds them to an
+account and institution, rejects weak/test results, authenticates callbacks and
+rechecks canonical provider records. No live provider account exists; actual Zambian
+university coverage, program fields and live journeys remain unconfirmed. Preview
+eligibility is still explicitly unverified, and public/production mode remains disabled.
+
+Hosted maintenance schedules consistent backups with three-copy retention and
+isolated restore checks; the owner can download a checked copy after confirming their
+password. Cleanup removes only expired temporary records. Request IDs and bounded
+aggregate metrics support investigation. External uptime alerts, a protected offsite
+copy and a real hosted restore exercise remain the operator's setup tasks.
+
+The owner approval/email/feedback/backup TLS browser exercise passed five groups.
+A bounded TLS exercise used 16 accounts, eight mutual matches, 16 simultaneous SSE
+streams, 96 saved messages and 96 idempotent retries with zero 5xx responses; sessions,
+receipts and history survived a forced restart. This is evidence for that isolated
+pilot-sized workload, not a campus capacity or Render performance claim. See
+[validation](VALIDATION.md) for final counts and scope.
+
+## Remaining real-world acceptance
+
+- Deploy this update and bootstrap the actual operator account on Render.
+- Configure and observe real confirmation/recovery delivery.
+- Establish the actual institution and live student/18+ verification arrangement.
+- Supply legal operator identity, complete applicable privacy review and approve
+  retention, appeals, support staffing and incident procedures.
+- Confirm offsite recovery, external alerts and hosted storage/redeploy persistence.
+- Finish the two actual Android-phone journey, including mobile data and native keyboards.
+- Run consenting adult student trials and fix/retest their findings.
+
+HEIC, animated images, cropping and chat image attachments remain outside this phase.
+The supplied specification ends during section 14.4; omitted content is not assumed
+implemented. These limitations are tracked in the [checklist](../CHECKLIST.md),
+[operator runbook](OPERATIONS.md) and [pilot plan](PILOT.md).

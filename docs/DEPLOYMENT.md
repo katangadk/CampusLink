@@ -14,7 +14,7 @@ metadata remain excluded. Local use remains supported.
 
 1. Open the `campuslink-staging` web service in Render.
 2. Choose **Manual Deploy → Deploy latest commit**. If selecting a particular
-   commit, use the update titled **Open hosted website without shared tester login**.
+   commit, select the reviewed launch-work update on `main`; record its exact commit in the acceptance log.
 3. Wait for that deployment to become **Live**. Cancel any old browser password
    popup, then open <https://campuslink-staging.onrender.com> again.
 4. The landing page and **Create account / Sign in** pages should open directly.
@@ -67,29 +67,23 @@ remain no-store/no-index. The supplied demo database and seed command are
 refused online. Production mode and real eligibility verification remain
 separate from opening the preview website.
 
-## Recovery email
+## Owner, email and recovery setup
 
-Recovery remains unavailable until configured. Set `CAMPUSLINK_SMTP_HOST`,
-`CAMPUSLINK_SMTP_PORT` (normally 587), `CAMPUSLINK_SMTP_FROM` and any required
-SMTP user/password in Render. Test actual mailbox delivery. Recovery links
-open the reset page directly and do not require a tester password.
+After deploying the launch-work update, follow [OPERATIONS.md](OPERATIONS.md).
+Create your own account, grant it operator access from the trusted Render shell,
+then approve membership in the console. The first grant activates hosted `auto`
+approvals, including for existing preview accounts; it does not introduce a shared
+website password. The Blueprint configures the supplied support email, an independent
+mail token key and three scheduled backups. It does not configure SMTP credentials,
+buy a verification account, or prove that those settings exist on the current service.
 
-## Back up and rehearse restore
-
-Run a consistent backup from Render's service shell:
-
-```sh
-python -m campuslink.backup /var/data/backups/campuslink-2026-10-27.sqlite3
-```
-
-Use a fresh filename. The backup command creates an owner-only file, checks
-integrity and refuses overwrites. Accounts, sessions, messages and image bytes
-are included. Download a secure external copy; a backup on the same disk does
-not protect against losing that disk. Never commit backups to GitHub.
-
-Restore a copy into a separate test database/service, then check sign-in,
-profiles, images and history. Do not overwrite a live database while Uvicorn
-is using it.
+Set SMTP secrets privately in Render and confirm actual email receipt. Use the
+operator console for backups, isolated restore checks and password-confirmed backup
+downloads. Protect a separate offsite copy; server copies alone cannot recover disk
+loss. The runbook covers expiry/retention, staff revocation, restore procedures,
+monitoring and optional external verification. Schema 6 refuses an old-app downgrade;
+use a reviewed roll-forward correction if needed. Existing one-worker/disk settings
+and paid resources are unchanged.
 
 ## Hosted acceptance checks
 

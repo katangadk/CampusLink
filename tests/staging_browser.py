@@ -20,6 +20,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import WebDriverException
 
 from campuslink.backup import backup_database
 from .journey_browser import Journey, ROOT, PASSWORD
@@ -47,8 +48,8 @@ class StagingJourney(Journey):
 
     def start(self):
         env={**os.environ,'CAMPUSLINK_DB':str(self.database),'CAMPUSLINK_MODE':'staging',
-             'CAMPUSLINK_BASE_URL':self.url}
-        self.server=subprocess.Popen([sys.executable,'-m','uvicorn','campuslink.app:app','--host','127.0.0.1',
+             'CAMPUSLINK_BASE_URL':self.url,'CAMPUSLINK_REQUIRE_APPROVAL':'false',**getattr(self,'extra_env',{})}
+        self.server=subprocess.Popen([sys.executable,'-m','uvicorn',getattr(self,'application','campuslink.app:app'),'--host','127.0.0.1',
             '--port',str(self.port),'--ssl-certfile',str(self.cert),'--ssl-keyfile',str(self.key),
             '--timeout-graceful-shutdown','2','--log-level','warning'],cwd=ROOT,env=env,stdout=self.log,stderr=self.log)
         with self.http() as c:
@@ -77,8 +78,13 @@ class StagingJourney(Journey):
         # or Authorization headers are supplied to the browser.
         devtools, connection = driver.start_devtools()
         challenges = self.native_challenges[driver.session_id] = []
-        connection.add_callback(devtools.fetch.RequestPaused,
-            lambda event: connection.execute(devtools.fetch.continue_request(event.request_id)))
+        def resume(event):
+            try:connection.execute(devtools.fetch.continue_request(event.request_id))
+            except WebDriverException as error:
+                # A navigation can cancel an intercepted request before its
+                # callback resumes it. Other protocol errors must still fail.
+                if 'Invalid InterceptionId' not in str(error):raise
+        connection.add_callback(devtools.fetch.RequestPaused,resume)
         def authenticate(event):
             challenges.append(event.request.url)
             response = devtools.fetch.AuthChallengeResponse(response='CancelAuth')
