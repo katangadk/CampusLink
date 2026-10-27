@@ -6,7 +6,7 @@ Follow the [development checklist](CHECKLIST.md) for completed work, the next fe
 
 A working local campus dating and student-discovery application with a FastAPI backend, a persistent SQLite database, and a responsive browser interface. The main path is **discover → public Like → mutual match → chat**, with private comment requests as another way to connect. Feed supports text/photo posts and public reactions. Comments stay private; a recipient must accept a request before a new conversation opens. Music is excluded. Friendship and study connections remain available.
 
-**Status: local functional MVP, built and tested.** Real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred at your request. Local use remains supported. A restricted test service is deployed at [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com); hosted acceptance remains open. This implementation follows the supplied brief through section 14.4, where the pasted document ends mid-sentence. Full profiles and test-account setup identify fictional accounts as **Local test · Unverified**. CampusLink is independent of ZUT.
+**Status: local functional MVP, built and tested.** Real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred at your request. Local use remains supported. A hosted preview service is deployed at [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com); hosted acceptance remains open. This implementation follows the supplied brief through section 14.4, where the pasted document ends mid-sentence. Full profiles and test-account setup identify fictional accounts as **Local test · Unverified**. CampusLink is independent of ZUT.
 
 ## Run locally
 
@@ -46,11 +46,13 @@ For two-person testing, use separate browser profiles, two phones, or a private 
 
 Other fixtures: `chipo`, `david`, `esther`, `farai`, and `grace` at `campuslink.test`, with the same local password. Never reuse fixture credentials with real data. A newly registered account is explicitly a local test account and must complete onboarding. Dating requires separate 18+ test setup, explicit opt-in, and preferences; no account is presented as age-verified.
 
-## Restricted online test deployment
+## Hosted preview deployment
 
-The deployment files are prepared for [katangadk/CampusLink](https://github.com/katangadk/CampusLink). Follow [DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Render Blueprint, shared tester gate, individual test accounts, persistent disk, HTTPS/proxy settings, backup/restore and hosted acceptance checks.
+Open [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com). The current source removes the shared tester password: visitors open the website directly, then create or sign in to their own accounts. Deploy the latest update to apply this behavior to the live service.
 
-`staging` requires an HTTPS canonical URL, a separate absolute database path and a random access password before it starts. Pages, assets, photos, APIs and live events are gated; the tester access form and minimal health endpoint are available before access is granted. Browser password pop-ups are replaced by a normal access form with clear password/cookie errors. Staging refuses the supplied demo database and demo seed command. Public/student-launch modes remain disabled. Creating the Render service uses paid compute/storage and remains a separate step from committing source.
+Follow [DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Render Blueprint, persistent disk, HTTPS/proxy settings, normal account login, backup/restore and hosted checks. Old tester username/password environment variables are ignored; no shared access credentials are required.
+
+`staging` keeps a canonical HTTPS origin, separate persistent database, Secure/HttpOnly account cookies, CSRF and private-data permissions. Online demo seeding and copied demo databases are refused. Production eligibility and hosted/student acceptance remain separate from direct preview access.
 
 ## Light and dark themes
 
@@ -192,4 +194,4 @@ Recovery responds identically for known and unknown emails. Delivery runs after 
 
 The following work is outside the current local MVP scope: real student/adult verification, email delivery setup, privacy and operational review, and testing with actual students. These requirements are deferred rather than implemented and do not block running or developing the local MVP.
 
-`CAMPUSLINK_MODE` supports `local` and restricted `staging`. Public/production values still refuse startup. The deferred work and deployment checks are tracked in [implementation status](docs/STATUS.md) for a future public launch.
+`CAMPUSLINK_MODE` supports `local` and hosted-preview `staging`. Public/production values still refuse startup. The deferred work and deployment checks are tracked in [implementation status](docs/STATUS.md) for a future public launch.

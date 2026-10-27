@@ -24,7 +24,7 @@ def options():
 def main():
     deployment, config = options()
     if sys.argv[1:] == ['--check']:
-        print(f'Valid restricted staging configuration: {deployment.origin}; database={deployment.database}; workers=1')
+        print(f'Valid hosted preview configuration: {deployment.origin}; database={deployment.database}; workers=1')
         return
     if sys.argv[1:]:
         raise SystemExit('Usage: python -m campuslink.serve [--check]')

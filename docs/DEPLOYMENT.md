@@ -1,188 +1,122 @@
-# Restricted online test deployment
+# Hosted preview deployment
 
-CampusLink now supports `local` and `staging`. Staging is an access-controlled
-test environment with fictional, unverified accounts. Public/student-launch
-modes still refuse startup. No Render service or paid resources are created by
-editing these files, running tests, or pushing the repository.
+The preview website is <https://campuslink-staging.onrender.com>.
+The 27 October update removes the shared tester password. Visitors open the
+website directly and create or sign in to their own CampusLink accounts.
+Profiles, photos, Feed and conversations still require account authentication
+and their existing visibility, consent and block permissions.
 
-The source repository is <https://github.com/katangadk/CampusLink>. It is public;
-publish source only. Local databases, images, session records, secrets, backups,
-private workspace metadata and the pasted development brief are excluded from
-the release checkout. Never add `.env` files containing real values.
+The source repository is <https://github.com/katangadk/CampusLink>. Publish
+source only: databases, images, sessions, secrets, backups and private workspace
+metadata remain excluded. Local use remains supported.
 
-The restricted test service is deployed at
-<https://campuslink-staging.onrender.com>. Its HTTPS health endpoint and tester
-challenge responded on 25 October 2026. Hosted account, device, redeployment
-and restore acceptance are still open; deployment alone does not close them.
+## Update the existing Render service
 
-## What is ready
+1. Open the `campuslink-staging` web service in Render.
+2. Choose **Manual Deploy → Deploy latest commit**. If selecting a particular
+   commit, use the update titled **Open hosted website without shared tester login**.
+3. Wait for that deployment to become **Live**. Cancel any old browser password
+   popup, then open <https://campuslink-staging.onrender.com> again.
+4. The landing page and **Create account / Sign in** pages should open directly.
+   There is no shared access form, tester username or site-wide password.
+5. Create an individual test account. Supplied local Alice/Brian/moderator
+   fixtures are not available online; the hosted database is separate.
 
-- [render.yaml](../render.yaml) defines one Python web service with a 1 GB
-  persistent disk mounted at `/var/data`. The compute plan is `0.5c-512mb`.
-  This is a paid service plus paid storage; review the current estimate in
-  Render before creation. Automatic deployments are disabled.
-- [.python-version](../.python-version) selects the current Python 3.14 patch.
-- `python -m campuslink.serve` validates settings and starts one Uvicorn worker
-  on Render's `PORT`, with HTTPS proxy handling and bounded graceful shutdown.
-- Every page, asset, API, photo and event stream requires the shared tester
-  gate over HTTPS. Each tester then signs in with their individual app account.
-  The tester access form and `GET /api/health` are accessible before signing in.
-- Successful tester access is remembered for seven days in a signed,
-  host-only Secure/HttpOnly cookie. Application sign-in failures and sign-out
-  do not reopen tester access. Rotating the tester username or password
-  invalidates these cookies. The gate uses a normal HTML form with inline
-  password/cookie errors; it never sends a browser HTTP-auth challenge.
-- The canonical host is pinned, insecure access is denied, application cookies
-  are Secure/HttpOnly, and staging responses use no-store/no-index headers.
-- Supplied demo databases and demo seeding are refused. The hosted volume
-  starts separately from the computer's development database.
-- [The example settings](../.env.staging.example) contain no real credentials.
+Existing `CAMPUSLINK_STAGING_USERNAME` and `CAMPUSLINK_STAGING_PASSWORD` values
+are ignored by the updated application. There is no need to reset them or
+share them. Old `/tester-access` bookmarks redirect to the website.
 
-## Deploy from the Render dashboard
+The current workspace has no Render deployment connection. A GitHub push alone
+does not prove the service has updated. Confirm the deployed commit and direct
+page behavior on the actual URL.
 
-1. Sign in to Render and connect the GitHub account that can access
-   `katangadk/CampusLink`.
-2. Choose **New → Blueprint**, select that repository, and review `render.yaml`.
-3. Review the paid compute/storage estimate before creating the service.
-   Keep one service instance and its persistent disk. The build command is
-   `pip install -r requirements.txt`; the start command is
-   `python -m campuslink.serve`. Do not add a seed or migration command to the
-   build/pre-deploy steps; the persistent volume is mounted only at runtime.
-4. Render generates `CAMPUSLINK_STAGING_PASSWORD` and supplies
-   `RENDER_EXTERNAL_URL`. The application uses that HTTPS URL automatically.
-   The form only asks for the password. The gate username `campuslink-tester`
-   is retained for legacy HTTP clients. Read the generated password from
-   Render's environment settings and share it privately with the selected
-   testers. Keep it out of source, chat logs and URLs.
-5. Check the deployment logs and `/api/health`. Expect `mode: staging` and
-   `public_launch_ready: false`. The latter is intentional: the service is a
-   restricted test, not a student launch.
-6. Open the actual HTTPS address. First enter the shared password on the
-   **Open CampusLink** tester access page. The browser remembers this access for
-   seven days. Then create an individual fictional app account.
-   There are no seeded Alice/Brian/moderator logins in staging.
-7. Use two independent browser sessions or phones to complete the checks below.
-   Record the real URL and results before calling the online test accepted.
+## Create a service from the Blueprint
 
-The Blueprint deliberately leaves the region at Render's default. Select the
-region before creation if you have a preference; it cannot be changed in place.
-Render services with disks have a short interruption during redeployment.
+1. Sign in to Render and connect the GitHub account for `katangadk/CampusLink`.
+2. Choose **New → Blueprint**, branch `main`, Blueprint path `render.yaml`.
+3. Review the paid compute/storage estimate before creation. The Blueprint
+   defines one Python service (`0.5c-512mb`) and a 1 GB disk at `/var/data`.
+   Keep one instance. Automatic code deployments are off.
+4. Keep build command `pip install -r requirements.txt` and start command
+   `python -m campuslink.serve`. Do not seed the database during deployment.
+5. Render supplies `RENDER_EXTERNAL_URL`; CampusLink uses that HTTPS origin.
+   Check `/api/health`: expect `status: ok`, `mode: staging` and
+   `public_launch_ready: false`. The last value records unfinished launch work.
+6. Open the website directly and test separate individual accounts.
+
+The Python version is specified in [.python-version](../.python-version).
+The persistent disk holds SQLite accounts, sessions, messages and processed
+images. Deploying a service with a disk causes a brief interruption.
 
 ## Settings
 
+Set these in the hosting environment; the app does not load `.env` files itself.
+The [.env.staging.example](../.env.staging.example) contains no actual secrets.
+
 | Variable | Value or behavior |
 | --- | --- |
-| `CAMPUSLINK_MODE` | `staging`; Render refuses the local configuration. |
-| `CAMPUSLINK_DB` | `/var/data/campuslink.sqlite3`; must be an absolute path outside the local project `data/` directory. |
-| `CAMPUSLINK_STAGING_USERNAME` | `campuslink-tester` in the Blueprint; 3–64 plain username characters. |
-| `CAMPUSLINK_STAGING_PASSWORD` | Random secret, 24–128 characters; generated by Render. |
-| `CAMPUSLINK_BASE_URL` | Optional canonical HTTPS origin for a custom domain; otherwise `RENDER_EXTERNAL_URL` is used. No path, query or credentials. |
-| `CAMPUSLINK_TRUSTED_PROXY_IPS` | On Render the launcher trusts its managed ingress. Elsewhere it defaults to loopback; set your actual trusted reverse-proxy IPs/networks. |
-| `PORT` | Assigned by Render; the launcher validates it and uses one worker. |
+| `CAMPUSLINK_MODE` | `staging` for the hosted preview. |
+| `CAMPUSLINK_DB` | `/var/data/campuslink.sqlite3`; absolute, separate from local `data/`. |
+| `CAMPUSLINK_BASE_URL` | Optional canonical HTTPS origin for a custom domain; defaults to Render's `RENDER_EXTERNAL_URL`. |
+| `CAMPUSLINK_TRUSTED_PROXY_IPS` | The launcher trusts Render ingress; elsewhere configure actual proxy IPs/networks. |
+| `PORT` | Assigned by Render; one worker listens on this port. |
 
-`--forwarded-allow-ips="*"` is used automatically only when `RENDER=true`, on
-the assumption that traffic reaches the service through Render's managed
-ingress. Do not expose that configuration as a directly reachable server on a
-different host. Existing CSRF, session, account, visibility and block checks
-remain enforced behind the gate. Thirty failed gate requests per IP per minute
-are allowed; valid gate credentials are not locked out by failed attempts.
-
-The app does not automatically read `.env` files. Set values through the
-hosting dashboard or exported environment variables. Never set a fake public
-mode or seed the local database to work around an initialization error.
-
-### Repeating tester password prompt
-
-The original Basic challenge caused repeated browser modals. The first
-cookie fix (`b93e69c`) deployed successfully, but the user still reported the
-problem. The current version removes the native challenge entirely. Opening
-`/tester-access` shows a normal form; rejected access passwords appear inline.
-Missing/blocked cookies receive an explicit error rather than a redirect loop.
-The form requires a same-origin, bounded POST and a separate CSRF cookie/token.
-Tester access never creates an individual account session.
-
-Deploy the latest commit using **Manual Deploy → Deploy latest commit** and
-wait for **Live**. Cancel any old browser modal and reload
-<https://campuslink-staging.onrender.com/tester-access>. The expected page has
-an **Access password** field and **Continue** button, without a username popup.
-If the form rejects the password, copy the actual value of
-`CAMPUSLINK_STAGING_PASSWORD` from the service's Environment settings; the
-variable name and individual account passwords do not unlock the gate. If
-replacing it, use a random 24–128 character password, save/redeploy the change,
-and share the new value privately. This workspace cannot read Render's secret.
+HTTPS and canonical-host checks remain enforced. Account cookies are
+Secure/HttpOnly, writes retain CSRF and origin checks, and preview responses
+remain no-store/no-index. The supplied demo database and seed command are
+refused online. Production mode and real eligibility verification remain
+separate from opening the preview website.
 
 ## Recovery email
 
-Recovery is optional for the restricted test and remains unavailable until
-configured. Set `CAMPUSLINK_SMTP_HOST`, `CAMPUSLINK_SMTP_PORT` (normally 587),
-`CAMPUSLINK_SMTP_FROM`, and any required user/password secrets in Render.
-The canonical HTTPS URL is used for reset links. Test actual mailbox delivery;
-passing token tests alone does not prove email delivery. Emails and recovery
-links still require the tester gate to open the application.
+Recovery remains unavailable until configured. Set `CAMPUSLINK_SMTP_HOST`,
+`CAMPUSLINK_SMTP_PORT` (normally 587), `CAMPUSLINK_SMTP_FROM` and any required
+SMTP user/password in Render. Test actual mailbox delivery. Recovery links
+open the reset page directly and do not require a tester password.
 
 ## Back up and rehearse restore
 
-Run a consistent backup from Render's service shell while the app is running:
+Run a consistent backup from Render's service shell:
 
 ```sh
-python -m campuslink.backup /var/data/backups/campuslink-2026-10-25.sqlite3
+python -m campuslink.backup /var/data/backups/campuslink-2026-10-27.sqlite3
 ```
 
-Choose a fresh filename for every backup. The command uses SQLite's online
-backup API, creates an owner-only file, verifies it, and refuses to overwrite
-an existing file. Accounts, session records, messages and processed image
-bytes are all inside this database.
+Use a fresh filename. The backup command creates an owner-only file, checks
+integrity and refuses overwrites. Accounts, sessions, messages and image bytes
+are included. Download a secure external copy; a backup on the same disk does
+not protect against losing that disk. Never commit backups to GitHub.
 
-A backup on the same volume does not protect against losing that volume.
-Download a copy to operator-controlled secure storage. Do not place backups in
-GitHub. Before relying on backups, restore a copy into a separate restricted
-service/database and verify sign-in, profiles, images and message history.
-Do not overwrite the active database while Uvicorn is using it.
+Restore a copy into a separate test database/service, then check sign-in,
+profiles, images and history. Do not overwrite a live database while Uvicorn
+is using it.
 
 ## Hosted acceptance checks
 
-- Without gate credentials: page navigations redirect to `/tester-access`;
-  JavaScript, APIs, photos and SSE return 401 without `WWW-Authenticate`.
-  Only the access form and the minimal health endpoint are publicly available.
-- With gate credentials: registration/sign-in works over HTTPS, cookies are
-  Secure/HttpOnly, and cross-origin or invalid-CSRF writes fail.
-- Wrong access passwords show an inline error. Correct access survives
-  unsigned-in account checks, wrong individual passwords, refresh and app
-  sign-out. Expired tester access returns to the form with a local return URL.
-- Two independent accounts can discover, match, exchange messages and confirm
-  Sent/Delivered/Read. Private comments remain recipient-controlled requests.
-- Profile/post photos upload and remain accessible only under their normal
-  permissions; public likes do not disclose private comments.
-- Offline retry saves one message; background/resume catches up.
-- Redeploy/restart retains accounts, sessions, photos, posts and history.
-- Unmatch, Dating deactivation and block revoke access in both clients.
-- Perform a backup and a separate restore exercise, including actual images.
-- The phone's tester form, keyboard, backgrounding and mobile-data use
-  are observed on the actual hosted address. See [PHONE_TEST.md](PHONE_TEST.md).
+- Landing, signup, sign-in and required assets return 200 without credentials
+  or redirects to a shared access page. There is no native password challenge.
+- Private APIs, photos and live events return 401 until an account signs in.
+- Registration/login, wrong-password errors, logout and refresh work over HTTPS;
+  Secure/HttpOnly cookies persist and invalid-CSRF/cross-origin writes fail.
+- Two independent accounts discover, match, exchange Sent/Delivered/Read messages,
+  and handle private comment requests under recipient control.
+- Photos persist across redeployment, offline retry saves one message, and
+  unmatch, Dating deactivation and block revoke access in both clients.
+- Complete hosted backup/restore and actual Android/mobile-data checks in
+  [PHONE_TEST.md](PHONE_TEST.md). Temporary TLS browser tests do not close them.
 
-Local TLS browser checks are not a Render deployment, a trusted public
-certificate check, a load test, or physical-device acceptance.
+After future changes, deploy the reviewed commit and repeat the two-account
+message/photo check. Local automated results and the actual hosted result are
+recorded separately in [VALIDATION.md](VALIDATION.md).
 
-## Updating the service
-
-Push reviewed source to GitHub, take a fresh backup, then choose a manual
-deployment in Render. Automatic deployments are off to avoid unexpected
-restarts of the test service. After every deployment, check health and perform
-a two-account message/photo check. Rotate the shared gate password if it is
-disclosed; existing tester sessions will need the replacement value.
-
-## Public launch remains separate
-
-Staging does not verify students or adults and must not be presented as a live
-student dating service. Real eligibility, recovery delivery, staffed moderation
-and support, privacy review, backup operations, security/load validation and
-consenting student trials remain in [CHECKLIST.md](../CHECKLIST.md).
+Real student/adult verification, recovery delivery, operational support,
+privacy review and consenting student trials remain in [CHECKLIST.md](../CHECKLIST.md).
 
 ## Provider references
 
 - [Render FastAPI hosting](https://render.com/docs/deploy-fastapi)
+- [Render deploy options](https://render.com/docs/deploys)
 - [Render Blueprint fields](https://render.com/docs/blueprint-spec)
-- [Render persistent disks and deployment limits](https://render.com/docs/disks)
+- [Render persistent disks](https://render.com/docs/disks)
 - [Render automatic URL variables](https://render.com/docs/environment-variables)
-- [Render Python version selection](https://render.com/docs/python-version)
 - [FastAPI proxy headers](https://fastapi.tiangolo.com/advanced/behind-a-proxy/)

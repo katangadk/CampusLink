@@ -1,48 +1,38 @@
 import base64
-from pathlib import Path
 import sqlite3
-import time
 import uuid
-from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
 import pytest
 
 from campuslink.app import create_app, ROOT
 from campuslink.backup import backup_database
-from campuslink.deployment import ACCESS_COOKIE, ACCESS_CSRF_COOKIE, ACCESS_PATH, ACCESS_SECONDS, Deployment
+from campuslink.deployment import Deployment
 from campuslink.seed import seed
 from campuslink.serve import options
-from .conftest import sql
 from .test_photos import image_bytes
 
-USER = 'private-tester'
-PASSWORD = 'Synthetic-staging-gate-2026-only!'
 ORIGIN = 'https://staging.campuslink.test'
+PASSWORD = 'Individual-test-password-2026!'
 
 
 @pytest.fixture
 def staging(monkeypatch, tmp_path):
-    monkeypatch.delenv('RENDER', raising=False)
-    monkeypatch.delenv('RENDER_EXTERNAL_URL', raising=False)
+    for name in ('RENDER','RENDER_EXTERNAL_URL','CAMPUSLINK_STAGING_USERNAME','CAMPUSLINK_STAGING_PASSWORD'):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv('CAMPUSLINK_MODE', 'staging')
     monkeypatch.setenv('CAMPUSLINK_DB', str(tmp_path / 'staging.sqlite3'))
     monkeypatch.setenv('CAMPUSLINK_BASE_URL', ORIGIN)
-    monkeypatch.setenv('CAMPUSLINK_STAGING_USERNAME', USER)
-    monkeypatch.setenv('CAMPUSLINK_STAGING_PASSWORD', PASSWORD)
     return create_app()
 
 
-def client(app, gate=True, origin=ORIGIN):
-    c = TestClient(app, base_url=origin)
-    if gate:
-        c.headers['Authorization'] = 'Basic ' + base64.b64encode((USER + ':' + PASSWORD).encode()).decode()
-    return c
+def client(app, origin=ORIGIN):
+    return TestClient(app, base_url=origin)
 
 
 def register(c, name):
     r = c.post('/api/auth/register', json={'username': name, 'display_name': name,
-        'email': name + '@campuslink.test', 'password': 'Individual-test-password-2026!', 'agreement': True})
+        'email': name + '@campuslink.test', 'password': PASSWORD, 'agreement': True})
     assert r.status_code == 200, r.text
     assert 'Secure' in r.headers['set-cookie'] and 'HttpOnly' in r.headers['set-cookie']
     assert r.json()['user']['verified'] is False
@@ -50,252 +40,98 @@ def register(c, name):
     return r.json()['user']
 
 
-@pytest.mark.parametrize('path,method', [('/', 'GET'),('/signup','GET'),('/assets/app.js','GET'),
-    ('/api/catalog','GET'),('/api/events','GET'),('/api/feed','GET'),('/api/me/photos','POST'),
-    ('/api/auth/register','POST'),('/api/photos/unknown','GET'),('/api/post-photos/unknown','GET')])
-def test_gate_protects_pages_assets_apis_photos_and_streams(staging, path, method):
-    response = client(staging, gate=False).request(method, path, follow_redirects=False)
-    navigation = method == 'GET' and path in ('/', '/signup')
-    assert response.status_code == (303 if navigation else 401)
-    assert 'WWW-Authenticate' not in response.headers
-    if navigation:
-        assert response.headers['location'].startswith(ACCESS_PATH+'?next=')
-    else:
-        assert response.json()['tester_access_required'] is True
+@pytest.mark.parametrize('path', ['/', '/signup', '/login', '/assets/app.js', '/api/catalog'])
+def test_visitors_open_website_directly_without_shared_credentials(staging, path):
+    response = client(staging).get(path, follow_redirects=False)
+    assert response.status_code == 200
+    assert 'location' not in response.headers and 'WWW-Authenticate' not in response.headers
+    assert 'set-cookie' not in response.headers
+    assert 'tester-access-form' not in response.text
     assert response.headers['Cache-Control'] == 'no-store'
     assert response.headers['X-Robots-Tag'] == 'noindex, nofollow, noarchive'
     assert response.headers['Strict-Transport-Security'].startswith('max-age=')
-    assert PASSWORD not in response.text
 
 
-def test_health_is_public_and_gate_does_not_replace_account_login(staging):
-    r = client(staging, gate=False, origin='http://internal-probe').get('/api/health')
+@pytest.mark.parametrize('path', ['/api/me','/api/feed','/api/chats','/api/notifications',
+    '/api/message-requests','/api/events','/api/photos/unknown','/api/post-photos/unknown',
+    '/api/profiles/unknown','/api/security/sessions'])
+def test_private_data_and_live_events_still_require_account_login(staging, path):
+    response = client(staging).get(path)
+    assert response.status_code == 401
+    assert response.json()['detail'] == 'Please sign in again.'
+    assert 'WWW-Authenticate' not in response.headers
+    assert 'tester_access_required' not in response.json()
+
+
+def test_health_is_minimal_and_catalog_hides_demo_accounts(staging):
+    r = client(staging, origin='http://internal-probe').get('/api/health')
     assert r.status_code == 200 and r.json() == {'status':'ok','mode':'staging','public_launch_ready':False}
-    assert 'database' not in r.text and USER not in r.text
-    c = client(staging)
-    catalog = c.get('/api/catalog').json()
+    assert 'database' not in r.text
+    catalog = client(staging).get('/api/catalog').json()
     assert catalog['mode'] == 'staging' and catalog['demo_accounts_available'] is False
-    assert c.get('/api/me').status_code == 401  # Gate credentials are not a student session.
-    assert c.get('/assets/app.js').status_code == 200
 
 
-def test_tester_cookie_survives_account_401_and_logout_without_rechallenging(staging):
+def test_only_individual_account_password_is_required_and_session_survives_restart(staging):
     c = client(staging)
-    response = c.get('/signup')
-    cookie = response.headers['set-cookie']
-    assert cookie.startswith(ACCESS_COOKIE + '=')
-    for flag in ('Secure', 'HttpOnly', 'SameSite=lax', 'Path=/', f'Max-Age={ACCESS_SECONDS}'):
-        assert flag in cookie
-    assert 'Domain=' not in cookie and PASSWORD not in cookie
-    # Simulate the browser dropping its HTTP-auth cache after an account 401.
-    c.headers.pop('Authorization')
-    for _ in range(3):
-        response = c.get('/api/me')
-        assert response.status_code == 401 and 'WWW-Authenticate' not in response.headers
-        assert c.get('/api/catalog').status_code == 200
-        assert c.get('/assets/app.js').status_code == 200
-    wrong = c.post('/api/auth/login', json={'email':'absent@campuslink.test','password':'wrong'})
-    assert wrong.status_code == 401 and 'WWW-Authenticate' not in wrong.headers
-    assert c.get('/signup').status_code == 200
-    user = register(c, 'cookie_tester')
+    user = register(c, 'direct_ada')
+    cookie = c.cookies.get('campuslink_session')
+    assert cookie and '__Host-campuslink_staging' not in c.cookies
     assert c.get('/api/me').json()['user']['id'] == user['id']
+    restored = client(create_app())
+    restored.cookies.update(c.cookies)
+    assert restored.get('/api/me').json()['user']['id'] == user['id']
     assert c.patch('/api/me',json={'bio':'wrong'},headers={'X-CSRF-Token':'invalid'}).status_code == 403
     assert c.post('/api/auth/logout',json={}).status_code == 200
     assert c.get('/api/me').status_code == 401
     assert c.get('/login').status_code == 200
+    wrong = c.post('/api/auth/login',json={'email':'direct_ada@campuslink.test','password':'wrong'})
+    assert wrong.status_code == 401 and 'WWW-Authenticate' not in wrong.headers
+    signed_in = c.post('/api/auth/login',json={'email':'direct_ada@campuslink.test','password':PASSWORD})
+    assert signed_in.status_code == 200
+    assert c.get('/api/me').json()['user']['id'] == user['id']
 
 
-def test_health_and_failed_gate_attempts_never_grant_tester_cookies(staging):
-    for c in (client(staging), client(staging, gate=False)):
-        response = c.get('/api/health')
-        assert response.status_code == 200 and 'set-cookie' not in response.headers
-    response = client(staging, gate=False).get('/signup', follow_redirects=False)
-    assert response.status_code == 303 and 'set-cookie' not in response.headers
+@pytest.mark.parametrize('legacy_password', ['', 'short', 'Old-shared-access-password-2026!'])
+def test_old_render_password_settings_do_not_enable_a_gate(staging, monkeypatch, legacy_password):
+    monkeypatch.setenv('CAMPUSLINK_STAGING_USERNAME','old-tester')
+    monkeypatch.setenv('CAMPUSLINK_STAGING_PASSWORD',legacy_password)
+    c = client(create_app())
+    c.headers['Authorization'] = 'Basic ' + base64.b64encode(('old-tester:'+legacy_password).encode()).decode()
+    c.cookies.set('__Host-campuslink_staging','old-cookie')
+    assert c.get('/signup',follow_redirects=False).status_code == 200
+    assert c.get('/api/me').status_code == 401
+    if legacy_password:
+        assert legacy_password not in repr(Deployment.load(ROOT))
 
 
-@pytest.mark.parametrize('value', ['', 'invalid', '1.nonce.mac', 'x'*161,
-    '999999999999.'+'a'*32+'.'+'b'*64, '1.'+'a'*32+'.'+'b'*64,
-    'not-a-number.'+'a'*32+'.'+'b'*64])
-def test_invalid_tester_cookies_do_not_bypass_gate(staging, value):
-    c = client(staging, gate=False)
-    c.cookies.set(ACCESS_COOKIE, value)
-    assert c.get('/api/catalog').status_code == 401
+@pytest.mark.parametrize('method', ['GET','POST'])
+def test_old_tester_access_bookmark_returns_to_website(staging, method):
+    response = client(staging).request(method, '/tester-access?next=https://attacker.test',follow_redirects=False)
+    assert response.status_code == 303 and response.headers['location'] == '/'
+    assert 'WWW-Authenticate' not in response.headers and 'set-cookie' not in response.headers
 
 
-def test_tester_cookie_signature_expiry_host_and_credential_rotation(staging, monkeypatch):
-    c = client(staging)
-    c.get('/signup')
-    original = c.cookies.get(ACCESS_COOKIE)
-    c.headers.pop('Authorization')
-    c.cookies.clear()
-    c.cookies.set(ACCESS_COOKIE, original[:-1] + ('0' if original[-1] != '0' else '1'))
-    assert c.get('/api/catalog').status_code == 401
-    c.cookies.set(ACCESS_COOKIE, original)
-    assert c.get('/api/catalog',headers={'Host':'other.test'}).status_code == 400
-    assert c.get('/api/catalog').status_code == 200
-    with monkeypatch.context() as clock:
-        clock.setattr('campuslink.deployment.time.time',lambda:float(original.split('.')[0]))
-        assert c.get('/api/catalog').status_code == 401
-    for variable, value in [('CAMPUSLINK_STAGING_PASSWORD', 'Rotated-synthetic-gate-password-2026!'),
-                            ('CAMPUSLINK_STAGING_USERNAME', 'new-tester'),
-                            ('CAMPUSLINK_BASE_URL', 'https://another.campuslink.test')]:
-        with monkeypatch.context() as settings:
-            settings.setenv(variable, value)
-            other = client(create_app(), gate=False, origin=value if variable=='CAMPUSLINK_BASE_URL' else ORIGIN)
-            other.cookies.set(ACCESS_COOKIE, original)
-            assert other.get('/api/catalog').status_code == 401
-
-
-def test_signed_future_tester_cookie_is_refused(staging):
-    deployment = Deployment.load(ROOT)
-    value = f'{int(time.time()) + ACCESS_SECONDS + 60}.' + 'a'*32
-    c = client(staging, gate=False)
-    c.cookies.set(ACCESS_COOKIE, value + '.' + deployment.access_signature(value))
-    assert c.get('/api/catalog').status_code == 401
-
-
-@pytest.mark.parametrize('authorization', ['Bearer test','Basic invalid!', 'Basic ',
-    'Basic ' + base64.b64encode(b'wrong:wrong').decode(),
-    'Basic ' + base64.b64encode(b'no-colon').decode(),
-    'Basic ' + base64.b64encode(b'\xff:invalid').decode()])
-def test_malformed_or_wrong_gate_credentials_fail_closed(staging, authorization):
-    r = client(staging, gate=False).get('/api/catalog', headers={'Authorization':authorization})
-    assert r.status_code == 401
-
-
-def test_gate_rejects_http_wrong_hosts_and_spoofed_proxy_headers(staging):
-    c = client(staging, origin=ORIGIN.replace('https:', 'http:'))
-    assert c.get('/api/catalog', headers={'X-Forwarded-Proto':'https'}).status_code == 403
-    assert client(staging, origin='https://other.test').get('/api/catalog', headers={'X-Forwarded-Host':'staging.campuslink.test'}).status_code == 400
-    assert client(staging).get('/api/catalog', headers={'Host':'staging.campuslink.test:443'}).status_code == 200
+def test_hosted_preview_keeps_https_and_canonical_host_checks(staging):
+    insecure = client(staging, origin=ORIGIN.replace('https:','http:'))
+    assert insecure.get('/').status_code == 403
+    assert insecure.get('/api/catalog',headers={'X-Forwarded-Proto':'https'}).status_code == 403
+    assert client(staging,origin='https://other.test').get('/').status_code == 400
+    assert client(staging).get('/',headers={'Host':'staging.campuslink.test:443'}).status_code == 200
 
 
 def test_trusted_proxy_preserves_https_origin_and_secure_sessions(staging):
     from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-    trusted = client(ProxyHeadersMiddleware(staging, trusted_hosts='testclient'), origin=ORIGIN.replace('https:', 'http:'))
+    trusted = client(ProxyHeadersMiddleware(staging,trusted_hosts='testclient'),origin=ORIGIN.replace('https:','http:'))
     trusted.headers['X-Forwarded-Proto'] = 'https'
     trusted.headers['Origin'] = ORIGIN
-    register(trusted, 'proxy_tester')
-    untrusted = client(ProxyHeadersMiddleware(staging, trusted_hosts='10.0.0.1'), origin=ORIGIN.replace('https:', 'http:'))
-    assert untrusted.get('/api/catalog',headers={'X-Forwarded-Proto':'https'}).status_code == 403
+    register(trusted,'proxy_tester')
+    untrusted = client(ProxyHeadersMiddleware(staging,trusted_hosts='10.0.0.1'),origin=ORIGIN.replace('https:','http:'))
+    assert untrusted.get('/',headers={'X-Forwarded-Proto':'https'}).status_code == 403
 
 
-def test_wrong_gate_attempts_are_limited_without_locking_out_valid_testers(staging):
-    c = client(staging, gate=False)
-    c.headers['Authorization'] = 'Basic ' + base64.b64encode(b'wrong:wrong').decode()
-    assert c.get('/api/catalog').status_code == 401
-    sql(staging, 'UPDATE rate_limits SET count=30 WHERE key="staging-gate:testclient"')
-    assert c.get('/api/catalog').status_code == 429
-    assert client(staging).get('/api/catalog').status_code == 200
-    assert c.get('/api/health').status_code == 200
-
-
-def access_form(c, target='/signup'):
-    response = c.get(ACCESS_PATH+'?'+urlencode({'next':target}))
-    assert response.status_code == 200
-    csrf = c.cookies.get(ACCESS_CSRF_COOKIE)
-    assert f'name="csrf" value="{csrf}"' in response.text
-    return {'password':PASSWORD, 'csrf':csrf, 'next':target}
-
-
-def test_browser_access_form_rejects_password_clearly_then_opens_app(staging):
-    c = client(staging, gate=False)
-    fields = access_form(c, '/chats')
-    wrong = c.post(ACCESS_PATH, data={**fields,'password':'Wrong-access-password!'},headers={'Origin':ORIGIN})
-    assert wrong.status_code == 401 and 'WWW-Authenticate' not in wrong.headers
-    assert 'That access password was not accepted' in wrong.text
-    assert 'Wrong-access-password!' not in wrong.text and PASSWORD not in wrong.text
-    assert ACCESS_COOKIE not in c.cookies and 'campuslink_session' not in c.cookies
-    response = c.post(ACCESS_PATH, data=fields, headers={'Origin':ORIGIN}, follow_redirects=False)
-    assert response.status_code == 303
-    assert 'check=1' in response.headers['location']
-    assert ACCESS_COOKIE in c.cookies and ACCESS_CSRF_COOKIE not in c.cookies
-    checked = c.get(response.headers['location'], follow_redirects=False)
-    assert checked.status_code == 303 and checked.headers['location'] == '/chats'
-    assert c.get('/chats').status_code == 200
-    assert c.get('/api/me').status_code == 401  # Tester access is not app login.
-    assert c.get('/api/catalog').status_code == 200
-
-
-@pytest.mark.parametrize('attack', ['missing-origin','cross-origin','cross-site','missing-csrf','wrong-csrf','unicode-csrf'])
-def test_browser_access_form_requires_same_origin_and_csrf(staging, attack):
-    c = client(staging, gate=False)
-    fields = access_form(c)
-    headers = {'Origin':ORIGIN}
-    if attack == 'missing-origin': headers.clear()
-    if attack == 'cross-origin': headers['Origin'] = 'https://attacker.test'
-    if attack == 'cross-site': headers['Sec-Fetch-Site'] = 'cross-site'
-    if attack == 'missing-csrf': c.cookies.clear()
-    if attack == 'wrong-csrf': fields['csrf'] = 'wrong'
-    if attack == 'unicode-csrf': fields['csrf'] = 'é'*43
-    response = c.post(ACCESS_PATH, data=fields, headers=headers)
-    assert response.status_code == 403 and 'WWW-Authenticate' not in response.headers
-    assert ACCESS_COOKIE not in c.cookies
-
-
-@pytest.mark.parametrize('target', ['https://attacker.test','//attacker.test','/\\attacker.test',
-    '/%2f%2fattacker.test','/%5cattacker.test','/%0d%0aLocation:evil',ACCESS_PATH+'?next=/chats','x'*1025])
-def test_browser_access_form_refuses_external_or_recursive_next_urls(staging, target):
-    c = client(staging, gate=False)
-    fields = access_form(c, target)
-    response = c.post(ACCESS_PATH, data=fields, headers={'Origin':ORIGIN}, follow_redirects=False)
-    checked = c.get(response.headers['location'], follow_redirects=False)
-    assert checked.status_code == 303 and checked.headers['location'] == '/signup'
-
-
-def test_browser_access_form_detects_blocked_cookies_without_redirect_loop(staging):
-    c = client(staging, gate=False)
-    response = c.post(ACCESS_PATH,data=access_form(c),headers={'Origin':ORIGIN},follow_redirects=False)
-    assert response.status_code == 303
-    blocked = client(staging, gate=False).get(response.headers['location'])
-    assert blocked.status_code == 200 and not blocked.history
-    assert 'Your browser did not keep the access cookie' in blocked.text
-    assert 'WWW-Authenticate' not in blocked.headers
-
-
-def test_browser_access_form_limits_failed_passwords_but_accepts_correct_one(staging):
-    c = client(staging, gate=False)
-    fields = access_form(c)
-    assert not sql(staging,'SELECT * FROM rate_limits WHERE key="staging-gate:testclient"')
-    assert c.post(ACCESS_PATH,data={**fields,'password':'wrong'},headers={'Origin':ORIGIN}).status_code == 401
-    sql(staging,'UPDATE rate_limits SET count=30 WHERE key="staging-gate:testclient"')
-    limited = c.post(ACCESS_PATH,data={**fields,'password':'wrong'},headers={'Origin':ORIGIN})
-    assert limited.status_code == 429 and limited.headers['Retry-After'] == '60'
-    assert c.post(ACCESS_PATH,data=fields,headers={'Origin':ORIGIN},follow_redirects=False).status_code == 303
-
-
-def test_browser_access_form_bounds_and_validates_body(staging):
-    c = client(staging, gate=False)
-    fields = access_form(c)
-    headers = {'Origin':ORIGIN,'Content-Type':'application/x-www-form-urlencoded'}
-    too_large = c.post(ACCESS_PATH,content=iter([b'x'*2048,b'y'*2049]),headers=headers)
-    assert too_large.status_code == 413
-    assert c.post(ACCESS_PATH,json=fields,headers={'Origin':ORIGIN}).status_code == 415
-    duplicate = urlencode(fields)+'&password=duplicate'
-    assert c.post(ACCESS_PATH,content=duplicate,headers=headers).status_code == 403
-    assert ACCESS_COOKIE not in c.cookies
-
-
-def test_browser_access_form_escapes_values_and_disables_scripts(staging):
-    c = client(staging, gate=False)
-    target = '/?x=\"><script>alert(1)</script>&y={{ERROR}}&z={{CSRF}}'
-    response = c.get(ACCESS_PATH+'?'+urlencode({'next':target}))
-    assert '<script>' not in response.text and '&lt;script&gt;' in response.text
-    assert '&y={{ERROR}}&amp;z={{CSRF}}' not in response.text  # Ampersands must be escaped too.
-    assert '{{ERROR}}' in response.text and '{{CSRF}}' in response.text  # No recursive template expansion.
-    assert "default-src 'none'" in response.headers['Content-Security-Policy']
-    assert 'WWW-Authenticate' not in response.headers
-    assert response.headers['Cache-Control'] == 'no-store'
-    for flag in ('Secure','HttpOnly','SameSite=lax','Path=/'):
-        assert flag in response.headers['set-cookie']
-    assert c.get('/assets/tester-access.html').status_code == 401
-
-
-def test_browser_access_form_keeps_https_host_and_method_rules(staging):
-    assert client(staging,gate=False,origin=ORIGIN.replace('https:','http:')).get(ACCESS_PATH).status_code == 403
-    assert client(staging,gate=False,origin='https://other.test').get(ACCESS_PATH).status_code == 400
-    response = client(staging,gate=False).delete(ACCESS_PATH)
-    assert response.status_code == 405 and response.headers['Allow'] == 'GET, POST'
+def test_direct_registration_rejects_cross_origin_requests(staging):
+    response = client(staging).post('/api/auth/register',json={},headers={'Origin':'https://attacker.test'})
+    assert response.status_code == 403
 
 
 def test_staging_keeps_csrf_and_persists_accounts_messages_photos_after_backup(staging, tmp_path):
@@ -313,7 +149,7 @@ def test_staging_keeps_csrf_and_persists_accounts_messages_photos_after_backup(s
     assert photo.status_code == 200, photo.text
     url = photo.json()['user']['main_photo_url']
     original = b.get(url).content
-    assert client(staging,gate=False).get(url).status_code == 401
+    assert client(staging).get(url).status_code == 401
     backup = backup_database(staging.state.db_path,tmp_path/'backup.sqlite3')
     assert backup.stat().st_mode & 0o777 == 0o600
     restored = create_app(backup)
@@ -343,10 +179,7 @@ def test_backup_never_overwrites_or_creates_missing_source(staging, tmp_path):
     ('CAMPUSLINK_BASE_URL',''),('CAMPUSLINK_BASE_URL','http://example.test'),
     ('CAMPUSLINK_BASE_URL','https://user:pass@example.test'),('CAMPUSLINK_BASE_URL','https://example.test/path'),
     ('CAMPUSLINK_BASE_URL','https://example.test?query=1'),('CAMPUSLINK_BASE_URL','https://localhost'),
-    ('CAMPUSLINK_BASE_URL','https://bad host.test'),('CAMPUSLINK_BASE_URL','https://example..test'),
-    ('CAMPUSLINK_STAGING_USERNAME',''),('CAMPUSLINK_STAGING_USERNAME','user:name'),
-    ('CAMPUSLINK_STAGING_PASSWORD',''),('CAMPUSLINK_STAGING_PASSWORD','short'),
-    ('CAMPUSLINK_STAGING_PASSWORD','replace-this-with-a-random-password')])
+    ('CAMPUSLINK_BASE_URL','https://bad host.test'),('CAMPUSLINK_BASE_URL','https://example..test')])
 def test_invalid_hosted_settings_refuse_startup(staging, monkeypatch, key, value):
     monkeypatch.setenv(key,value)
     with pytest.raises(RuntimeError) as exc:
@@ -354,7 +187,7 @@ def test_invalid_hosted_settings_refuse_startup(staging, monkeypatch, key, value
     assert PASSWORD not in str(exc.value)
 
 
-def test_render_requires_gate_and_uses_its_canonical_https_url(staging, monkeypatch):
+def test_render_requires_hosted_mode_and_uses_its_canonical_https_url(staging, monkeypatch):
     monkeypatch.setenv('RENDER','true')
     monkeypatch.delenv('CAMPUSLINK_BASE_URL')
     monkeypatch.setenv('RENDER_EXTERNAL_URL',ORIGIN)
@@ -379,8 +212,7 @@ def test_staging_cannot_seed_or_import_known_demo_accounts(staging, monkeypatch,
         create_app(seeded)
 
 
-def test_gate_secret_not_in_settings_repr_and_launcher_validates_port(staging, monkeypatch):
-    assert PASSWORD not in repr(Deployment.load(ROOT))
+def test_launcher_validates_port(staging, monkeypatch):
     monkeypatch.setenv('PORT','12345')
     _,opts=options()
     assert opts['port'] == 12345 and opts['forwarded_allow_ips'] == '127.0.0.1'

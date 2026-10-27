@@ -1138,10 +1138,7 @@ def create_app(db_path: str | Path | None = None, *, testing=False, recovery_del
     install_social(app,db=db,auth=auth,payload=payload,text=text,number=number,fail=fail,now=now,limit=limit,emit=emit,notify=notify,public=public,get_user=get_user,blocked=blocked,campus_access=campus_access,pair=pair,authorized_relation=authorized_relation,dating_compatible=dating_compatible,like_dating=like_dating)
 
     if deployment.mode=='staging':
-        def record_gate_failure(ip):
-            with db() as con:
-                limit(con,'staging-gate:'+ip,30)
-        app.add_middleware(StagingAccess,deployment=deployment,record_failure=record_gate_failure)
+        app.add_middleware(StagingAccess,deployment=deployment)
 
     app.mount('/assets',StaticFiles(directory=ROOT/'web'),name='assets')
 

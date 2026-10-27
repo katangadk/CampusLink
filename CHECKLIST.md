@@ -132,7 +132,7 @@ The combined run uses two freshly registered accounts, an initially empty tempor
 - [x] Pass the social/conversation browser suites and focused reduced-motion, 320px/desktop, focus, draft and message checks; record the scope in validation.
 - [ ] Confirm the feel and native keyboard behavior on the two physical Android phones; Stage 6 stays open.
 
-## Restricted hosted test preparation — 25 October 2026
+## Original hosted test preparation — 25 October 2026 (historical)
 
 - [x] Add a staging mode that fails closed without HTTPS, a canonical host, separate database storage and a strong tester gate.
 - [x] Protect pages, static assets, photos, APIs and SSE; retain individual account sessions, CSRF and relationship permissions.
@@ -146,9 +146,17 @@ The combined run uses two freshly registered accounts, an initially empty tempor
 - [x] Remember accepted tester access separately from account login; pass 179 API tests and all seven TLS browser groups with one native tester challenge per browser.
 - [x] Deploy the initial cookie fix (`b93e69c`); Render confirmed success, but the user still reported the prompt.
 - [x] Replace native HTTP-auth prompts with an HTML access form, clear password/cookie errors, same-origin/CSRF protection and recovery of the original page; pass 199 API tests and eight TLS browser groups with zero native challenges.
-- [ ] Deploy the replacement HTML access form and confirm zero native prompts plus usable password/cookie errors on the hosted service.
+- Shared-gate work above is historical; it is superseded by the direct-access update below.
 - [ ] Validate the actual Render URL, managed certificate, persistence across redeployment and off-Wi-Fi two-phone journey.
 - [ ] Record hosted backup/restore and actual email-delivery results if email is configured.
+
+## Direct website access — 27 October 2026
+
+- [x] Remove the shared tester password, access page/cookies and frontend gate redirect.
+- [x] Open landing, signup, sign-in and required assets directly; ignore old tester settings and redirect old access-page bookmarks to the website.
+- [x] Retain HTTPS, normal account authentication, CSRF, private messages/photo permissions, consent and block checks.
+- [x] Pass all 168 API tests and eight TLS browser groups, including direct entry, normal login/logout, matching/chat, offline retry, restart persistence and zero native password challenges.
+- [ ] Deploy the direct-access update and confirm the website opens directly on the PC and Android phones.
 
 ## Later feature backlog
 

@@ -4,7 +4,7 @@ Use the [development checklist](../CHECKLIST.md) to track the next feature phase
 
 This is a local functional MVP, not a finished public product. Visual quality is not the acceptance criterion. The test target is students discovering, connecting, and chatting with real persisted state and server-side permissions.
 
-**Current scope:** local MVP use, development and restricted hosted testing. At the user's request, real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred. They are not prerequisites for the current local scope. Existing automated functional checks remain the acceptance evidence.
+**Current scope:** local MVP use, development and hosted preview testing. At the user's request, real student verification, email delivery setup, privacy and operational review, and testing with actual students are deferred. They are not prerequisites for the current local scope. Existing automated functional checks remain the acceptance evidence.
 
 | Area | Local implementation |
 | --- | --- |
@@ -48,7 +48,7 @@ The code supports local mode and access-controlled staging. Staging requires a c
 
 The Render Blueprint, one-worker launcher, Python version and consistent SQLite backup command are prepared in the source tree. The initial restricted TLS browser journey passed six groups using temporary certificates/accounts/servers, including live SSE, offline retry, forced restart and database/image backups. The initial 168 API tests passed, including 42 deployment/backup cases, and the local social browser regression passed all five groups. Exact results and the subsequent tester-login regression checks are recorded in [validation](VALIDATION.md).
 
-The restricted service is deployed at <https://campuslink-staging.onrender.com>. Render confirmed successful deployment of the first tester-cookie fix (`b93e69c`), and the user continued to report the password prompt. The current source replaces native HTTP-auth challenges with a normal HTML tester access page, inline rejected-password errors, blocked-cookie guidance, same-origin/CSRF protection and a safe return to the original page. Accepted tester access remains separate from individual account sessions and is remembered for seven days. Applying the form update on Render and observing the actual Android journey remain pending. See [DEPLOYMENT.md](DEPLOYMENT.md) and [validation](VALIDATION.md).
+On 27 October the user requested direct website access. The current source removes shared tester credentials, the access form/cookies and browser-gate redirects. Visitors open the website and use their individual CampusLink accounts. Canonical HTTPS, Secure/HttpOnly sessions, CSRF, private-data authorization and fixture refusal remain. Old tester settings are ignored and old access-page bookmarks return to the landing page. Deploying this direct-access version at <https://campuslink-staging.onrender.com> and observing the real Android journey remain pending. See [DEPLOYMENT.md](DEPLOYMENT.md) and [validation](VALIDATION.md).
 
 ## Automated evidence
 

@@ -41,8 +41,9 @@ class LocalEligibility:
 
     Local/staging test accounts are NEVER verified students or verified adults. Adult access
     is assigned by explicit fixtures or the separate local test declaration flow.
-    A birth-date update by itself never grants this flag. Hosted staging requires
-    a separate tester access gate. Public modes cannot run.
+    A birth-date update by itself never grants this flag. Hosted visitors open
+    the website directly; private features require individual account sessions.
+    A production eligibility provider is not configured.
     """
     def student(self, user):
         return bool(user['local_test'])

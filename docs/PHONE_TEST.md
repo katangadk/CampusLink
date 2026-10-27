@@ -26,7 +26,9 @@ the new network still needs confirmation.
 
 ## When testing the hosted staging build
 
-Open <https://campuslink-staging.onrender.com>. Its HTTPS health endpoint and tester challenge responded on 25 October 2026; account and phone acceptance remain pending. Enter the shared access password on the normal **Open CampusLink** page, then use a different individual app account on each phone. After deploying the HTML access-form update, confirm there are no native browser password pop-ups. Wrong access passwords must show an inline error; blocked cookies must produce guidance. Account sign-in errors, application sign-out and refresh must retain the seven-day tester session. Expired tester access must return to the form and recover the original local route after re-entry. Create fictional test accounts; the supplied Alice/Brian/moderator fixtures are not available in staging. Test on mobile data as well as Wi-Fi. Record access-form behavior, HTTPS login, background/resume and redeployment results. See [DEPLOYMENT.md](DEPLOYMENT.md) for setup. Local TLS browser tests do not mark these device checks complete.
+Open <https://campuslink-staging.onrender.com> after deploying the direct-access update. The website must open without a browser password popup or tester access form. Use a separate individual CampusLink account on each phone. Wrong account passwords should show an ordinary sign-in error; logout and sign-in must restore the same profile and saved conversations. Existing tester-password settings are ignored by the updated source.
+
+Create fictional test accounts; supplied Alice/Brian/moderator fixtures are not available online. Test on mobile data as well as Wi-Fi. Record the deployed commit, direct page access, account login, keyboard, background/resume and persistence after redeployment. See [DEPLOYMENT.md](DEPLOYMENT.md). Physical hosted acceptance remains pending; temporary TLS Chromium tests cannot close it.
 
 ## Prepare two independent profiles
 
