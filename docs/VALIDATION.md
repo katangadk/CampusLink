@@ -34,10 +34,17 @@ accounts and five persisted messages. No JavaScript/CSP or viewport failures
 were observed. JavaScript syntax, diff whitespace and local documentation
 links also passed.
 
-These are isolated automated checks with a temporary certificate/database.
-Deployment of the direct-access update and actual Android acceptance still
-need observing on the hosted URL. The dated tester-gate records below describe
-earlier versions and are superseded by this update.
+The user subsequently confirmed that direct website access works. The Render
+deployment record identifies `739c3ff`; a fresh unauthenticated HTTPS check of
+the actual hosted URL returned 200 for the app page and health endpoint, with
+no native authentication challenge. `/api/me` returned 401 with the normal
+account-sign-in message. This establishes hosted reachability and the basic
+account boundary, not complete hosted matching/chat acceptance.
+
+The automated journey used a temporary certificate/database. Actual Android
+acceptance, persistence across hosted redeployment and an operator restore
+exercise remain open. The dated tester-gate records below describe earlier
+versions and are superseded by this update.
 
 ## HTML tester access replaces native popups — 25 October 2026
 

@@ -156,7 +156,8 @@ The combined run uses two freshly registered accounts, an initially empty tempor
 - [x] Open landing, signup, sign-in and required assets directly; ignore old tester settings and redirect old access-page bookmarks to the website.
 - [x] Retain HTTPS, normal account authentication, CSRF, private messages/photo permissions, consent and block checks.
 - [x] Pass all 168 API tests and eight TLS browser groups, including direct entry, normal login/logout, matching/chat, offline retry, restart persistence and zero native password challenges.
-- [ ] Deploy the direct-access update and confirm the website opens directly on the PC and Android phones.
+- [x] Deploy the direct-access update (`739c3ff`); the user confirmed access works, and the hosted landing/health endpoints return 200 without a password challenge.
+- [ ] Complete the full hosted journey on both Android phones: registration, cross-program discovery, mutual match, messages/receipts, photos, offline retry and background/resume.
 
 ## Later feature backlog
 
@@ -171,7 +172,7 @@ These remain unchecked and deferred as agreed. They do not block the local featu
 - [ ] Configure and verify real recovery email delivery.
 - [ ] Complete privacy/legal review and operational moderation/support procedures.
 - [ ] Establish retention, backup/restore, monitoring, and deployment/security/load checks.
-- [ ] Complete actual hosted HTTPS deployment and acceptance; the restricted staging configuration is prepared.
+- [ ] Complete hosted acceptance: the direct-access preview is deployed, but the real-device journey, hosted persistence and restore checks remain open.
 - [ ] Conduct consenting student usability trials and resolve the findings before public launch.
 
 Detailed limitations remain in [implementation status](docs/STATUS.md).
