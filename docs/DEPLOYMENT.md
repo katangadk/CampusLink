@@ -6,6 +6,11 @@ website directly and create or sign in to their own CampusLink accounts.
 Profiles, photos, Feed and conversations still require account authentication
 and their existing visibility, consent and block permissions.
 
+The launch-work release `330ae53` deployed successfully on 27 October 2026 at
+13:48:44 UTC. The live catalog exposes the new approval tools; private operator
+routes require sign-in. Email/provider credentials and the actual owner-role
+grant remain setup tasks.
+
 The source repository is <https://github.com/katangadk/CampusLink>. Publish
 source only: databases, images, sessions, secrets, backups and private workspace
 metadata remain excluded. Local use remains supported.

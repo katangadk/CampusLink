@@ -18,8 +18,9 @@ grant. Local preview defaults off. Existing hosted accounts become pending on ac
 the owner must approve them, including their own account. Owner status is never granted
 from signup or a published email address.
 
-Release/setup and real-world observations remain distinct: deploy the reviewed source,
-grant the actual owner account in Render Shell, set SMTP secrets privately and verify
+Source 330ae53 is pushed and deployed on Render (deployment 7360196274, success
+2026-10-27 13:48:44 UTC). Anonymous live HTTPS/direct-entry/private-route checks pass.
+Setup and real-world observations remain distinct: grant the actual owner account in Render Shell, set SMTP secrets privately and verify
 receipt, confirm real verification coverage/account/programs before enabling external
 eligibility, protect/test an offsite backup, arrange operational alerts/privacy review,
 and finish both Android journeys and a consenting adult student pilot. No Render

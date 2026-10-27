@@ -49,7 +49,17 @@ Results are written to ignored `artifacts/staging-results.json`,
 introduced a syntax error during a browser rerun; it was corrected and the affected
 journeys rerun successfully before release.
 
-**Not established by these checks:** actual Render rollout/configuration, real
+The source was pushed as `330ae5329068d04dd9698be9471f583f04710272`. Render
+reported deployment `7360196274` successful at **2026-10-27 13:48:44 UTC**. The actual
+managed HTTPS certificate validated. Landing/signup/health and the new operator
+module returned 200 without a shared-password challenge; `/api/me`, operator
+status/member queue and verification returned 401 anonymously. The live catalog
+reports preview eligibility, external verification unconfigured and email unavailable.
+These probes created no accounts and read no private member data. The actual operator
+role has not been granted from this workspace. Results are in ignored
+`artifacts/hosted-launch-smoke.json`.
+
+**Not established by these checks:** actual owner/SMTP/provider configuration, real
 mailbox receipt, live provider/Zambian university support, legal review, actual
 offsite recovery, physical Android keyboard/network behavior or student acceptance.
 These remain open in [CHECKLIST.md](../CHECKLIST.md) and [OPERATIONS.md](OPERATIONS.md).

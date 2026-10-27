@@ -176,7 +176,8 @@ Owner decision: the owner approves account emails/membership. There is no verifi
 - [x] Add expired-record cleanup, request IDs, operator service metrics and private pilot feedback/triage.
 - [x] Document support/moderation procedures, SMTP/provider setup, offsite recovery, privacy review and a consenting-student pilot.
 - [x] Pass the owner approval/email/feedback/backup browser journey and the 16-account, 8-match messaging exercise. These use isolated QA services, not actual Render or physical phones.
-- [ ] Deploy this launch-work update to the actual Render service and grant the owner's existing account operator access using the trusted server shell.
+- [x] Deploy source `330ae53` to the actual Render service; GitHub reports success and live HTTPS/direct-entry/private-route checks pass.
+- [ ] Grant the owner's existing account operator access using the trusted Render shell, then approve the intended accounts.
 - [ ] Configure SMTP privately and confirm confirmation/reset messages arrive in an actual mailbox.
 - [ ] Confirm a live provider supports the actual Zambian university and both student/18+ evidence checks; configure credentials/consent and validate real outcomes before using external eligibility.
 - [ ] Supply the legal operator identity, complete privacy/legal review and approve reports/audit/external-backup retention and appeals procedures.

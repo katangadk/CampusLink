@@ -48,7 +48,7 @@ Other fixtures: `chipo`, `david`, `esther`, `farai`, and `grace` at `campuslink.
 
 ## Hosted preview deployment
 
-Open [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com). Visitors open the website directly, then create or sign in to their own accounts. The launch-work update must be deployed separately to enable its new operator tools.
+Open [campuslink-staging.onrender.com](https://campuslink-staging.onrender.com). Visitors open the website directly, then create or sign in to their own accounts. The launch-work update (`330ae53`) is live. Activate your owner account below to use its new tools.
 
 Follow [DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Render Blueprint, persistent disk, HTTPS/proxy settings, normal account login, backup/restore and hosted checks. Old tester username/password environment variables are ignored; no shared access credentials are required.
 

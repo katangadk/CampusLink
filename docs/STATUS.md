@@ -108,7 +108,7 @@ pilot-sized workload, not a campus capacity or Render performance claim. See
 
 ## Remaining real-world acceptance
 
-- Deploy this update and bootstrap the actual operator account on Render.
+- Source `330ae53` is deployed and anonymous HTTPS checks pass; bootstrap the actual operator account on Render.
 - Configure and observe real confirmation/recovery delivery.
 - Establish the actual institution and live student/18+ verification arrangement.
 - Supply legal operator identity, complete applicable privacy review and approve
